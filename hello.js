@@ -2,9 +2,11 @@ var ffi =require('ffi-napi')
 var ref = require('ref-napi');
 var ArrayType =require('ref-array-napi');
 var StructType = require('ref-struct-napi');
+var Union = require('ref-union-di')(ref);
 var wchar_size = process.platform == 'win32' ? 2 : 4;
-ref.types.wchar_t = Object.create(ref.types.CString)
-ref.types.wchar_t.get = function get (buf, offset) {
+ref.types.wchar_t = ref.types.ushort;
+ref.types.WCString = Object.create(ref.types.CString)
+ref.types.WCString.get = function get (buf, offset) {
   var _buf = buf.readPointer(offset)
   if (_buf.isNull()) {
     return null
@@ -12,7 +14,7 @@ ref.types.wchar_t.get = function get (buf, offset) {
   var stringBuf = _buf.reinterpretUntilZeros(wchar_size)
   return stringBuf.toString('utf16le') // TODO: decode UTF-32 on Unix
 };
-ref.types.wchar_t.set = function set (buf, offset, val) {
+ref.types.WCString.set = function set (buf, offset, val) {
   // TODO: better UTF-16 and UTF-32 encoding
   var _buf = new Buffer((val.length + 1) * wchar_size)
   _buf.fill(0)
@@ -27,34 +29,43 @@ ref.types.wchar_t.set = function set (buf, offset, val) {
 var winapi = {};
 //LP,P,NP,SP, this is overkill but why did microsoft just made so many names for the same thing?
 //we have to execute this many times because structs contain pointers already and they're referenced as pointers as well
-function createWinapiPointers(){
+function createWinapiPointers(overkill=false){
 Object.keys(winapi).forEach(_=>{if(!winapi.pointers.includes(_)){
 	winapi.pointers.push(_);
-	(ar=>ar.map(a=>a+"C").concat(ar))(["LP","P","NP","SP"]).map(a=>a+_).forEach(t=>{
+	((a,l,f)=>l.split('').reduce(f,a))(["LP","P","NP","SP"],overkill?"CUNZZ":"C",(ar,l)=>ar.map(a=>a+l).concat(ar)).map(a=>a+_).forEach(t=>{
 	winapi[t]=ref.refType(winapi[_]);
 	winapi.pointers.push(t);
 	})
 }})
 }
 winapi.fn = {};
-winapi.pointers=["fn","pointers"];
+winapi.pointers=["fn","pointers","LPCSTR","PCZPCWSTR","PZPWSTR","PCZPWSTR"];
+winapi.WCHAR=winapi.WSTR= ref.types.wchar_t;
+createWinapiPointers(true);
+winapi.PCZPCWSTR=winapi.PZPWSTR=winapi.PCZPWSTR=ref.refType(winapi.PWSTR);
+winapi.WCH=winapi.WSTR;
+winapi.NWPSTR=winapi.PWCHAR;
 winapi.VOID= ref.types.void;
-winapi.HANDLE = ref.refType(ref.types.int);//Honestly, what is the difference between a struct of 1 integer and just the integer itself? *thinking face emoji*
+winapi.HANDLE = ref.refType(ref.refType(ref.types.void));//Honestly, what is the difference between a struct of 1 integer and just the integer itself? *thinking face emoji*
 //Handles
 winapi.INT= ref.types.int;
 winapi.FLOAT= ref.types.float;
 winapi.ULONG= ref.types.ulong;
 winapi.LONG = ref.types.long;
-winapi.WCHAR = ref.types.char;
-winapi.WSTR = ref.types.wchar_t;
-winapi.STR = ref.types.CString;
+winapi.CHAR = ref.types.char;
+createWinapiPointers();
+
+winapi.LPSTR= winapi.LPCSTR = ref.types.CString;
 winapi.UINT = ref.types.uint;
 winapi.SHORT = ref.types.short;
 winapi.USHORT = ref.types.ushort;
 winapi.LONG_PTR = ref.types.long;
+winapi.ULONG_PTR = ref.types.ulong;
 winapi.LRESULT = winapi.LONG_PTR;
 winapi.LPARAM = winapi.LONG_PTR;
 winapi.UINT_PTR = ref.types.uint;
+winapi.INT_PTR = ref.types.int;
+winapi.LONG_PTR = ref.types.long;
 winapi.WPARAM = winapi.UINT_PTR;
 winapi.WORD = ref.types.ushort;
 winapi.DWORD = ref.types.ulong;
@@ -66,11 +77,12 @@ winapi.BOOLEAN = winapi.BYTE;
 //what is _MAC?
 winapi.HFILE= ref.types.int;
 //if strict winapi.HGDIOBJ = ref.refType(ref.types.void);
-["WND","HOOK","GDIOBJ","EVENT","ICON","INSTANCE","MODULE","BRUSH","KL","LOCAL","ACCEL","BITMAP","CURSOR","STR","WINSTA","LSURF","SPRITE","RSRC","METAFILE","GLOBAL","LOCAL","COLORSPACE","DC","GLRC","DESK","ENHMETAFILE","FONT","MENU","PALETTE","PEN","WINEVENTHOOK","MONITOR","UMPD"].forEach(_=>{winapi["H"+_]=winapi.HANDLE});
+["WND","HOOK","GDIOBJ","EVENT","ICON","INSTANCE","MODULE","RGN","BRUSH","KL","LOCAL","ACCEL","BITMAP","CURSOR","STR","WINSTA","LSURF","SPRITE","RSRC","METAFILE","GLOBAL","LOCAL","COLORSPACE","DC","GLRC","DESK","ENHMETAFILE","FONT","MENU","PALETTE","PEN","WINEVENTHOOK","MONITOR","UMPD","DWP","GESTUREINFO","TOUCHINPUT","SYNTHETICPOINTERDEVICE"].forEach(_=>{winapi["H"+_]=winapi.HANDLE});
 winapi.GLOBALHANDLE = winapi.HANDLE;
 winapi.LOCALHANDLE = winapi.HANDLE;
 winapi.DPI_AWARENESS_CONTEXT = winapi.HANDLE;
 winapi.COLORREF = winapi.DWORD;
+winapi.POINTER_INPUT_TYPE=winapi.DWORD;
 /*typedef struct tagWNDCLASSA {
   UINT      style;
   WNDPROC   lpfnWndProc;
@@ -83,6 +95,7 @@ winapi.COLORREF = winapi.DWORD;
   LPCSTR    lpszMenuName;
   LPCSTR    lpszClassName;
 } WNDCLASSA*/
+winapi.ACCESS_MASK=winapi.DWORD;
 createWinapiPointers();
 
 winapi.RECT=winapi.RECTL=StructType({
@@ -98,6 +111,10 @@ winapi.POINT=winapi.POINTL=StructType({
 winapi.POINTS=StructType({
 	x:winapi.SHORT,
 	y:winapi.SHORT
+});
+winapi.SIZE=StructType({
+	cx:winapi.LONG,
+	cy:winapi.LONG
 });
 winapi.PAINTSTRUCT=StructType({
 	hdc:winapi.HDC,
@@ -126,9 +143,151 @@ winapi.CREATESTRUCTA=StructType({
 	lpszClass:winapi.LPCSTR,
 	dwExStyle:winapi.DWORD
 });
+winapi.LUID=StructType({
+	LowPart:winapi.DWORD,
+	HighPart:winapi.LONG
+});
+winapi.BSMINFO=StructType({
+	cbSize:winapi.UINT,
+	hdesk:winapi.HDESK,
+	hwnd:winapi.HWND,
+	luid:winapi.LUID
+});
+winapi.MSG=StructType({
+	hwnd:winapi.HWND,
+	message:winapi.UINT,
+	wParam:winapi.WPARAM,
+	lParam:winapi.LPARAM,
+	time:winapi.DWORD,
+	pt:winapi.POINT,
+//	lPrivate:winapi.DWORD,
+});
+winapi.DEVMODEA=StructType({
+	dmDeviceName:ArrayType(winapi.BYTE,32),
+	dmSpecVersion:winapi.WORD,
+	dmDriverVersion:winapi.WORD,
+	dmSize:winapi.WORD,
+	dmDriverExtra:winapi.WORD,
+	dmFields:winapi.DWORD,
+	DUMMYUNIONNAME:new Union({
+		DUMMYSTRUCTNAME:StructType({
+			dmORiotation:ref.types.short,
+			dmPaperSize:ref.types.short,
+			dmPaperLength:ref.types.short,
+			dmPaperWidth:ref.types.short,
+			dmScale:ref.types.short,
+			dmCopies:ref.types.short,
+			dmDefaultSource:ref.types.short,
+			dmPrintQuality:ref.types.short,
+		 }),
+		DUMMYSTRUCTNAME2:StructType({
+			dmPosition:winapi.POINTL,
+			dmDisplayOrientation:winapi.DWORD,
+			dmDisplayFixedOutput:winapi.DWORD
+		})
+	}),
+	dmColor:ref.types.short,
+	dmDuplex:ref.types.short,
+	dmYResolution:ref.types.short,
+	dmTToption:ref.types.short,
+	dmCollate:ref.types.short,
+	dmFormName:ArrayType(winapi.WCHAR,32),
+	dmLogPixels:winapi.WORD,
+	dmBitsPerPel:winapi.DWORD,
+	dmPelsWidth:winapi.DWORD,
+	dmPelsHeight:winapi.DWORD,
+	DUMMYUNIONNAME2:new Union({
+		dmDisplayFlags:winapi.DWORD,
+		dmNup:winapi.DWORD
+	}),
+	dmDisplayFrequency:winapi.DWORD,
+	dmICMMethod:winapi.DWORD,
+	dmICMIntent:winapi.DWORD,
+	dmMediaType:winapi.DWORD,
+	dmDitherType:winapi.DWORD,
+	dmReserved1:winapi.DWORD,
+	dmReserved2:winapi.DWORD,
+	dmPanningWidth:winapi.DWORD,
+	dmPanningHeight:winapi.DWORD,
+});
+winapi.DEVMODE=winapi.DEVMODEW=StructType({
+	dmDeviceName:ArrayType(winapi.WCHAR,32),
+	dmSpecVersion:winapi.WORD,
+	dmDriverVersion:winapi.WORD,
+	dmSize:winapi.WORD,
+	dmDriverExtra:winapi.WORD,
+	dmFields:winapi.DWORD,
+	DUMMYUNIONNAME:new Union({
+		DUMMYSTRUCTNAME:StructType({
+			dmORiotation:ref.types.short,
+			dmPaperSize:ref.types.short,
+			dmPaperLength:ref.types.short,
+			dmPaperWidth:ref.types.short,
+			dmScale:ref.types.short,
+			dmCopies:ref.types.short,
+			dmDefaultSource:ref.types.short,
+			dmPrintQuality:ref.types.short,
+		 }),
+		DUMMYSTRUCTNAME2:StructType({
+			dmPosition:winapi.POINTL,
+			dmDisplayOrientation:winapi.DWORD,
+			dmDisplayFixedOutput:winapi.DWORD
+		})
+	}),
+	dmColor:ref.types.short,
+	dmDuplex:ref.types.short,
+	dmYResolution:ref.types.short,
+	dmTToption:ref.types.short,
+	dmCollate:ref.types.short,
+	dmFormName:ArrayType(winapi.WCHAR,32),
+	dmLogPixels:winapi.WORD,
+	dmBitsPerPel:winapi.DWORD,
+	dmPelsWidth:winapi.DWORD,
+	dmPelsHeight:winapi.DWORD,
+	DUMMYUNIONNAME2:new Union({
+		dmDisplayFlags:winapi.DWORD,
+		dmNup:winapi.DWORD
+	}),
+	dmDisplayFrequency:winapi.DWORD,
+	dmICMMethod:winapi.DWORD,
+	dmICMIntent:winapi.DWORD,
+	dmMediaType:winapi.DWORD,
+	dmDitherType:winapi.DWORD,
+	dmReserved1:winapi.DWORD,
+	dmReserved2:winapi.DWORD,
+	dmPanningWidth:winapi.DWORD,
+	dmPanningHeight:winapi.DWORD,
+});
+winapi.CHANGEFILTERSTRUCT=StructType({
+	cbSize:winapi.DWORD,
+	ExtStatus:winapi.DWORD
+});
+winapi.SECURITY_ATTRIBUTES=StructType({
+	nLength:winapi.DWORD,
+	lpSecurityDescriptor:winapi.LPVOID,
+	bInheritHandle:winapi.BOOL
+});
+winapi.DLGTEMPLATEA=winapi.DLGTEMPLATEW=winapi.DLGTEMPLATE=StructType({
+	style:winapi.DWORD,
+	dwExtendedStyle:winapi.DWORD,
+	cdit:winapi.WORD,
+	x:ref.types.short,
+	y:ref.types.short,
+	cx:ref.types.short,
+	lcy:ref.types.short,
+});
+winapi.ICONINFO=StructType({
+	fIcon:winapi.BOOL,
+	xHotspot:winapi.DWORD,
+	yHotspot:winapi.DWORD,
+	hbmMask:winapi.HBITMAP,
+	hbmColor:winapi.HBITMAP,
+});
+
 //enum
-["DPI_AWARENESS","DPI_HOSTING_BEGAVIOR"].forEach(_=>{winapi[_]=ref.types.int});
-winapi.fn.WNDPROC = [winapi.LRESULT,[winapi.HWND,winapi.UINT,winapi.WPARAM,winapi.LPARAM]]
+;["DPI_AWARENESS","DPI_HOSTING_BEGAVIOR","POINTER_FEEDBACK_MODE"].forEach(_=>{winapi[_]=ref.types.int});
+winapi.fn.WNDPROC = [winapi.LRESULT,[winapi.HWND,winapi.UINT,winapi.WPARAM,winapi.LPARAM]];
+winapi.fn.DLGPROC = [winapi.INT_PTR,[winapi.HWND,winapi.UINT,winapi.WPARAM,winapi.LPARAM]];
 Object.keys(winapi.fn).forEach(_=>{winapi[_]=winapi.PVOID});
 winapi.WNDCLASSA = StructType({
 	style: winapi.UINT,
@@ -142,17 +301,45 @@ winapi.WNDCLASSA = StructType({
 	lpszMenuName: winapi.LPCSTR,
 	lpszClassName: winapi.LPCSTR
 });
+winapi.WNDCLASSEXA=StructType({
+	cbSize:winapi.UINT,
+	style:winapi.UINT,
+	lpfnWndProc:winapi.WNDPROC,
+	cbClsExtra:ref.types.int,
+	cbWndExtra:ref.types.int,
+	hInstance:winapi.HINSTANCE,
+	hIcon:winapi.HICON,
+	hCursor:winapi.HCURSOR,
+	hbrBackground:winapi.HBRUSH,
+	lpszMenuName:winapi.LPCSTR,
+	lpszClassName:winapi.LPCSTR,
+	hIconSm:winapi.HICON
+});
+winapi.WNDCLASSEXW=StructType({
+	cbSize:winapi.UINT,
+	style:winapi.UINT,
+	lpfnWndProc:winapi.WNDPROC,
+	cbClsExtra:ref.types.int,
+	cbWndExtra:ref.types.int,
+	hInstance:winapi.HINSTANCE,
+	hIcon:winapi.HICON,
+	hCursor:winapi.HCURSOR,
+	hbrBackground:winapi.HBRUSH,
+	lpszMenuName:winapi.LPCWSTR,
+	lpszClassName:winapi.LPCSTR,
+	hIconSm:winapi.HICON
+});
+
+
 createWinapiPointers();
 
-var charp=ref.allocCString("Sample Window Class")
-var wn=new winapi.WNDCLASSA({lpszClassName:ref.allocCString("Sample Window Class")/*,lpfnWndProc:somefunc*/});
 //console.log(JSON.stringify(winapi));
 
 
 var current = ffi.Library("User32.dll", {  'MessageBoxA': [ 'int', [ winapi.HWND, winapi.LPCSTR, winapi.LPCSTR, winapi.UINT ] ],
 'RegisterClassA':[winapi.ATOM,[ref.refType(winapi.WNDCLASSA)]],
 ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
-/*	AddClipboardFormatListener: [winapi.BOOL, [winapi.HWND]],
+	AddClipboardFormatListener: [winapi.BOOL, [winapi.HWND]],
 	AdjustWindowRect: [winapi.BOOL, [winapi.LPRECT, winapi.DWORD, winapi.BOOL]],
 	AdjustWindowRectEx: [winapi.BOOL, [winapi.LPRECT, winapi.DWORD, winapi.BOOL, winapi.DWORD]],
 	AdjustWindowRectExForDpi: [winapi.BOOL, [winapi.LPRECT, winapi.DWORD, winapi.BOOL, winapi.DWORD, winapi.UINT]],
@@ -173,7 +360,7 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	BroadcastSystemMessageExW: [winapi.LONG, [winapi.DWORD, winapi.LPDWORD, winapi.UINT, winapi.WPARAM, winapi.LPARAM, winapi.PBSMINFO]],
 	BroadcastSystemMessageW: [winapi.LONG, [winapi.DWORD, winapi.LPDWORD, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
 	CalculatePopupWindowPosition: [winapi.BOOL, [winapi.POINT, winapi.SIZE, winapi.UINT, winapi.RECT, winapi.RECT]],
-/*	CallMsgFilterA: [winapi.BOOL, [winapi.LPMSG, winapi.INT]],
+	CallMsgFilterA: [winapi.BOOL, [winapi.LPMSG, winapi.INT]],
 	CallMsgFilterW: [winapi.BOOL, [winapi.LPMSG, winapi.INT]],
 	CallNextHookEx: [winapi.LRESULT, [winapi.HHOOK, winapi.INT, winapi.WPARAM, winapi.LPARAM]],
 	CallWindowProcA: [winapi.LRESULT, [winapi.WNDPROC, winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
@@ -220,11 +407,11 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	CloseWindowStation: [winapi.BOOL, [winapi.HWINSTA]],
 	CopyAcceleratorTableA: [winapi.INT, [winapi.HACCEL, winapi.LPACCEL, winapi.INT]],
 	CopyAcceleratorTableW: [winapi.INT, [winapi.HACCEL, winapi.LPACCEL, winapi.INT]],
-	CopyCursor: [winapi.VOID, [winapi.HCURSOR]],
+//	CopyCursor: [winapi.VOID, [winapi.HCURSOR]],
 	CopyIcon: [winapi.HICON, [winapi.HICON]],
 	CopyImage: [winapi.HANDLE, [winapi.HANDLE, winapi.UINT, winapi.INT, winapi.INT, winapi.UINT]],
 	CopyRect: [winapi.BOOL, [winapi.LPRECT, winapi.RECT]],
-	CountClipboardFormats: [winapi.INT, []],
+	CopyImage: [winapi.HANDLE, [winapi.HANDLE, winapi.UINT, winapi.INT, winapi.INT, winapi.UINT]],
 	CreateAcceleratorTableA: [winapi.HACCEL, [winapi.LPACCEL, winapi.INT]],
 	CreateAcceleratorTableW: [winapi.HACCEL, [winapi.LPACCEL, winapi.INT]],
 	CreateCaret: [winapi.BOOL, [winapi.HWND, winapi.HBITMAP, winapi.INT, winapi.INT]],
@@ -233,13 +420,13 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	CreateDesktopExA: [winapi.HDESK, [winapi.LPCSTR, winapi.LPCSTR, winapi.DEVMODEA, winapi.DWORD, winapi.ACCESS_MASK, winapi.LPSECURITY_ATTRIBUTES, winapi.ULONG, winapi.PVOID]],
 	CreateDesktopExW: [winapi.HDESK, [winapi.LPCWSTR, winapi.LPCWSTR, winapi.DEVMODEW, winapi.DWORD, winapi.ACCESS_MASK, winapi.LPSECURITY_ATTRIBUTES, winapi.ULONG, winapi.PVOID]],
 	CreateDesktopW: [winapi.HDESK, [winapi.LPCWSTR, winapi.LPCWSTR, winapi.DEVMODEW, winapi.DWORD, winapi.ACCESS_MASK, winapi.LPSECURITY_ATTRIBUTES]],
-	CreateDialogIndirectA: [winapi.VOID, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATE, winapi.HWND, winapi.DLGPROC]],
+//	CreateDialogIndirectA: [winapi.VOID, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATE, winapi.HWND, winapi.DLGPROC]],
 	CreateDialogIndirectParamA: [winapi.HWND, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATEA, winapi.HWND, winapi.DLGPROC, winapi.LPARAM]],
 	CreateDialogIndirectParamW: [winapi.HWND, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATEW, winapi.HWND, winapi.DLGPROC, winapi.LPARAM]],
-	CreateDialogIndirectW: [winapi.VOID, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATE, winapi.HWND, winapi.DLGPROC]],
+//	CreateDialogIndirectW: [winapi.VOID, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATE, winapi.HWND, winapi.DLGPROC]],
 	CreateDialogParamA: [winapi.HWND, [winapi.HINSTANCE, winapi.LPCSTR, winapi.HWND, winapi.DLGPROC, winapi.LPARAM]],
 	CreateDialogParamW: [winapi.HWND, [winapi.HINSTANCE, winapi.LPCWSTR, winapi.HWND, winapi.DLGPROC, winapi.LPARAM]],
-	CreateDialogW: [winapi.VOID, [winapi.HINSTANCE, winapi.LPCTSTR, winapi.HWND, winapi.DLGPROC]],
+//	CreateDialogW: [winapi.VOID, [winapi.HINSTANCE, winapi.LPCTSTR, winapi.HWND, winapi.DLGPROC]],
 	CreateIcon: [winapi.HICON, [winapi.HINSTANCE, winapi.INT, winapi.INT, winapi.BYTE, winapi.BYTE, winapi.BYTE, winapi.BYTE]],
 	CreateIconFromResource: [winapi.HICON, [winapi.PBYTE, winapi.DWORD, winapi.BOOL, winapi.DWORD]],
 	CreateIconFromResourceEx: [winapi.HICON, [winapi.PBYTE, winapi.DWORD, winapi.BOOL, winapi.DWORD, winapi.INT, winapi.INT, winapi.UINT]],
@@ -249,9 +436,9 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	CreateMenu: [winapi.HMENU, []],
 	CreatePopupMenu: [winapi.HMENU, []],
 	CreateSyntheticPointerDevice: [winapi.HSYNTHETICPOINTERDEVICE, [winapi.POINTER_INPUT_TYPE, winapi.ULONG, winapi.POINTER_FEEDBACK_MODE]],
-	CreateWindowA: [winapi.VOID, [winapi.LPCTSTR, winapi.LPCTSTR, winapi.DWORD, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.HWND, winapi.HMENU, winapi.HINSTANCE, winapi.LPVOID]],
+//	CreateWindowA: [winapi.VOID, [winapi.LPCTSTR, winapi.LPCTSTR, winapi.DWORD, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.HWND, winapi.HMENU, winapi.HINSTANCE, winapi.LPVOID]],
 	CreateWindowExA: [winapi.HWND, [winapi.DWORD, winapi.LPCSTR, winapi.LPCSTR, winapi.DWORD, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.HWND, winapi.HMENU, winapi.HINSTANCE, winapi.LPVOID]],
-	CreateWindowExW: [winapi.HWND, [winapi.DWORD, winapi.LPCWSTR, winapi.LPCWSTR, winapi.DWORD, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.HWND, winapi.HMENU, winapi.HINSTANCE, winapi.LPVOID]],
+	CreateWindowExW: [winapi.HWND, [winapi.DWORD, winapi.LPCWSTR, winapi.LPCWSTR, winapi.DWORD, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.HWND, winapi.HMENU, winapi.HINSTANCE, winapi.LPVOID]],/*
 	CreateWindowStationA: [winapi.HWINSTA, [winapi.LPCSTR, winapi.DWORD, winapi.ACCESS_MASK, winapi.LPSECURITY_ATTRIBUTES]],
 	CreateWindowStationW: [winapi.HWINSTA, [winapi.LPCWSTR, winapi.DWORD, winapi.ACCESS_MASK, winapi.LPSECURITY_ATTRIBUTES]],
 	CreateWindowW: [winapi.VOID, [winapi.LPCTSTR, winapi.LPCTSTR, winapi.DWORD, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.HWND, winapi.HMENU, winapi.HINSTANCE, winapi.LPVOID]],
@@ -261,7 +448,7 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	DefFrameProcW: [winapi.LRESULT, [winapi.HWND, winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
 	DefMDIChildProcA: [winapi.LRESULT, [winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
 	DefMDIChildProcW: [winapi.LRESULT  [winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
-	DefRawInputProc: [winapi.LRESULT, [winapi.PRAWINPUT, winapi.INT, winapi.UINT]],
+	DefRawInputProc: [winapi.LRESULT, [winapi.PRAWINPUT, winapi.INT, winapi.UINT]],*/
 	DefWindowProcA: [winapi.LRESULT, [winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
 	DefWindowProcW: [winapi.LRESULT, [winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
 	DeleteMenu: [winapi.BOOL, [winapi.HMENU, winapi.UINT, winapi.UINT]],
@@ -269,22 +456,22 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	DestroyAcceleratorTable: [winapi.BOOL, [winapi.HACCEL]],
 	DestroyCaret: [winapi.BOOL, []],
 	DestroyCursor: [winapi.BOOL, [winapi.HCURSOR]],
-	DestroyIcon: [winapi.BOOL, [winapi.HICON]],
-	DestroyMenu: [winapi.BOOL, [winapi.HMENU]],
+//	DestroyIcon: [winapi.BOOL, [winapi.HICON]],// just crashes?
+	DestroyMenu: [winapi.BOOL, [winapi.HMENU]],/*
 	DestroySyntheticPointerDevice: [winapi.VOID, [winapi.HSYNTHETICPOINTERDEVICE]],
 	DestroyWindow: [winapi.BOOL, [winapi.HWND]],
 	DialogBoxA: [winapi.VOID, [winapi.HINSTANCE, winapi.LPCTSTR, winapi.HWND, winapi.DLGPROC]],
 	DialogBoxIndirectA: [winapi.VOID, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATE, winapi.HWND, winapi.DLGPROC]],
 	DialogBoxIndirectParamA: [winapi.INT_PTR, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATEA, winapi.HWND, winapi.DLGPROC, winapi.LPARAM]],
 	DialogBoxIndirectParamW: [winapi.INT_PTR, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATEW, winapi.HWND, winapi.DLGPROC, winapi.LPARAM]],
-	DialogBoxIndirectW: [winapi.VOID, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATE, winapi.HWND, winapi.DLGPROC]],
+	DialogBoxIndirectW: [winapi.VOID, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATE, winapi.HWND, winapi.DLGPROC]],*/
 	DialogBoxParamA: [winapi.INT_PTR, [winapi.HINSTANCE, winapi.LPCSTR, winapi.HWND, winapi.DLGPROC, winapi.LPARAM]],
 	DialogBoxParamW: [winapi.INT_PTR, [winapi.HINSTANCE, winapi.LPCWSTR, winapi.HWND, winapi.DLGPROC, winapi.LPARAM]],
-	DialogBoxW: [winapi.VOID, [winapi.HINSTANCE, winapi.LPCTSTR, winapi.HWND, winapi.DLGPROC]],
+//	DialogBoxW: [winapi.VOID, [winapi.HINSTANCE, winapi.LPCTSTR, winapi.HWND, winapi.DLGPROC]],
 	DisableProcessWindowsGhosting: [winapi.VOID, []],
-	DispatchMessage: [winapi.LRESULT, [winapi.MSG]],
+//	DispatchMessage: [winapi.LRESULT, [winapi.MSG]],
 	DispatchMessageA: [winapi.LRESULT, [winapi.MSG]],
-	DispatchMessageW: [winapi.LRESULT, [winapi.MSG]],
+	DispatchMessageW: [winapi.LRESULT, [winapi.MSG]],/*
 	DisplayConfigGetDeviceInfo: [winapi.LONG, [winapi.DISPLAYCONFIG_DEVICE_INFO_HEADER]],
 	DisplayConfigSetDeviceInfo: [winapi.LONG, [winapi.DISPLAYCONFIG_DEVICE_INFO_HEADER]],
 	DlgDirListA: [winapi.INT, [winapi.HWND, winapi.LPSTR, winapi.INT, winapi.INT, winapi.UINT]],
@@ -309,7 +496,7 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	DrawText: [winapi.INT, [winapi.HDC, winapi.LPCTSTR, winapi.INT, winapi.LPRECT, winapi.UINT]],
 	DrawTextA: [winapi.INT, [winapi.HDC, winapi.LPCSTR, winapi.INT, winapi.LPRECT, winapi.UINT]],
 	DrawTextExA: [winapi.INT, [winapi.HDC, winapi.LPSTR, winapi.INT, winapi.LPRECT, winapi.UINT, winapi.LPDRAWTEXTPARAMS]],
-	DrawTextExW: [winapi.INT, [winapi.HDC, winapi.LPWSTR, winapi.INT, winapi.LPRECT, winapi.UINT, winapi.LPDRAWTEXTPARAMS]],
+	DrawTextExW: [winapi.INT, [winapi.HDC, winapi.LPWSTR, winapi.INT, winapi.LPRECT, winapi.UINT, winapi.LPDRAWTEXTPARAMS]],*/
 	DrawTextW: [winapi.INT, [winapi.HDC, winapi.LPCWSTR, winapi.INT, winapi.LPRECT, winapi.UINT]],
 	EmptyClipboard: [winapi.BOOL, []],
 	EnableMenuItem: [winapi.BOOL, [winapi.HMENU, winapi.UINT, winapi.UINT]],
@@ -321,7 +508,7 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	EndDialog: [winapi.BOOL, [winapi.HWND, winapi.INT_PTR]],
 	EndMenu: [winapi.BOOL, []],
 	EndPaint: [winapi.BOOL, [winapi.HWND, winapi.PAINTSTRUCT]],
-	EndTask: [winapi.BOOL, [winapi.HWND, winapi.BOOL, winapi.BOOL]],
+	EndTask: [winapi.BOOL, [winapi.HWND, winapi.BOOL, winapi.BOOL]],/*
 	EnumChildWindows: [winapi.BOOL, [winapi.HWND, winapi.WNDENUMPROC, winapi.LPARAM]],
 	EnumClipboardFormats: [winapi.UINT, [winapi.UINT]],
 	EnumDesktopsA: [winapi.BOOL, [winapi.HWINSTA, winapi.DESKTOPENUMPROCA, winapi.LPARAM]],
@@ -344,16 +531,16 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	EnumWindowStationsW: [winapi.BOOL, [winapi.WINSTAENUMPROCW, winapi.LPARAM]],
 	EqualRect: [winapi.BOOL, [winapi.RECT, winapi.RECT]],
 	EvaluateProximityToPolygon: [winapi.BOOL, [winapi.UINT32, winapi.POINT, winapi.TOUCH_HIT_TESTING_INPUT, winapi.TOUCH_HIT_TESTING_PROXIMITY_EVALUATION]],
-	EvaluateProximityToRect: [winapi.BOOL, [winapi.RECT, winapi.TOUCH_HIT_TESTING_INPUT, winapi.TOUCH_HIT_TESTING_PROXIMITY_EVALUATION]],
+	EvaluateProximityToRect: [winapi.BOOL, [winapi.RECT, winapi.TOUCH_HIT_TESTING_INPUT, winapi.TOUCH_HIT_TESTING_PROXIMITY_EVALUATION]],*/
 	ExcludeUpdateRgn: [winapi.INT, [winapi.HDC, winapi.HWND]],
-	ExitWindows: [winapi.VOID, [winapi.INT, winapi.LONG]],
+//	ExitWindows: [winapi.VOID, [winapi.INT, winapi.LONG]],
 	ExitWindowsEx: [winapi.BOOL, [winapi.UINT, winapi.DWORD]],
 	FillRect: [winapi.INT, [winapi.HDC, winapi.RECT, winapi.HBRUSH]],
 	FindWindowA: [winapi.HWND, [winapi.LPCSTR, winapi.LPCSTR]],
 	FindWindowExA: [winapi.HWND, [winapi.HWND, winapi.HWND, winapi.LPCSTR, winapi.LPCSTR]],
 	FindWindowExW: [winapi.HWND, [winapi.HWND, winapi.HWND, winapi.LPCWSTR, winapi.LPCWSTR]],
 	FindWindowW: [winapi.HWND, [winapi.LPCWSTR, winapi.LPCWSTR]],
-	FlashWindow: [winapi.BOOL, [winapi.HWND, winapi.BOOL]],
+	FlashWindow: [winapi.BOOL, [winapi.HWND, winapi.BOOL]],/*
 	FlashWindowEx: [winapi.BOOL, [winapi.PFLASHWINFO]],
 	FrameRect: [winapi.INT, [winapi.HDC, winapi.RECT, winapi.HBRUSH]],
 	GetActiveWindow: [winapi.HWND, []],
@@ -444,18 +631,18 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	GetMenuItemCount: [winapi.INT, [winapi.HMENU]],
 	GetMenuItemID: [winapi.UINT, [winapi.HMENU, winapi.INT]],
 	GetMenuItemInfoA: [winapi.BOOL, [winapi.HMENU, winapi.UINT, winapi.BOOL, winapi.LPMENUITEMINFOA]],
-	GetMenuItemInfoW: [winapi.BOOL, [winapi.HMENU, winapi.UINT, winapi.BOOL, winapi.LPMENUITEMINFOW]],
+	GetMenuItemInfoW: [winapi.BOOL, [winapi.HMENU, winapi.UINT, winapi.BOOL, winapi.LPMENUITEMINFOW]],*/
 	GetMenuItemRect: [winapi.BOOL, [winapi.HWND, winapi.HMENU, winapi.UINT, winapi.LPRECT]],
 	GetMenuState: [winapi.UINT, [winapi.HMENU, winapi.UINT, winapi.UINT]],
 	GetMenuStringA: [winapi.INT, [winapi.HMENU, winapi.UINT, winapi.LPSTR, winapi.INT, winapi.UINT]],
 	GetMenuStringW: [winapi.INT, [winapi.HMENU, winapi.UINT, winapi.LPWSTR, winapi.INT, winapi.UINT]],
-	GetMessage: [winapi.BOOL, [winapi.LPMSG, winapi.HWND, winapi.UINT, winapi.UINT]],
+//	GetMessage: [winapi.BOOL, [winapi.LPMSG, winapi.HWND, winapi.UINT, winapi.UINT]],
 	GetMessageA: [winapi.BOOL, [winapi.LPMSG, winapi.HWND, winapi.UINT, winapi.UINT]],
 	GetMessageExtraInfo: [winapi.LPARAM, []],
 	GetMessagePos: [winapi.DWORD, []],
 	GetMessageTime: [winapi.LONG, []],
-	GetMessageW: [winapi.BOOL, [winapi.LPMSG, winapi.HWND, winapi.UINT, winapi.UINT]],
-	GetMonitorInfoA: [winapi.BOOL, [winapi.HMONITOR, winapi.LPMONITORINFO]],
+	GetMessageW: [winapi.BOOL, [winapi.LPMSG, winapi.HWND, winapi.UINT, winapi.UINT]],/*
+	GetMonitorInfoA: [winapi.BOOL, [winapi.HMONITOR, winapi.LPMONITORINFO]],/*
 	GetMonitorInfoW: [winapi.BOOL, [winapi.HMONITOR, winapi.LPMONITORINFO]],
 	GetMouseMovePointsEx: [winapi.INT, [winapi.UINT, winapi.LPMOUSEMOVEPOINT, winapi.LPMOUSEMOVEPOINT, winapi.INT, winapi.DWORD]],
 	GetNextDlgGroupItem: [winapi.HWND, [winapi.HWND, winapi.HWND, winapi.BOOL]],
@@ -662,7 +849,7 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	OpenInputDesktop: [winapi.HDESK, [winapi.DWORD, winapi.BOOL, winapi.ACCESS_MASK]],
 	OpenWindowStationA: [winapi.HWINSTA, [winapi.LPCSTR, winapi.BOOL, winapi.ACCESS_MASK]],
 	OpenWindowStationW: [winapi.HWINSTA, [winapi.LPCWSTR, winapi.BOOL, winapi.ACCESS_MASK]],
-	PackTouchHitTestingProximityEvaluation: [winapi.LRESULT, [winapi.TOUCH_HIT_TESTING_INPUT, winapi.TOUCH_HIT_TESTING_PROXIMITY_EVALUATION]],
+	PackTouchHitTestingProximityEvaluation: [winapi.LRESULT, [winapi.TOUCH_HIT_TESTING_INPUT, winapi.TOUCH_HIT_TESTING_PROXIMITY_EVALUATION]],*/
 	PaintDesktop: [winapi.BOOL, [winapi.HDC]],
 	PeekMessageA: [winapi.BOOL, [winapi.LPMSG, winapi.HWND, winapi.UINT, winapi.UINT, winapi.UINT]],
 	PeekMessageW: [winapi.BOOL, [winapi.LPMSG, winapi.HWND, winapi.UINT, winapi.UINT, winapi.UINT]],
@@ -676,17 +863,17 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	PrintWindow: [winapi.BOOL, [winapi.HWND, winapi.HDC, winapi.UINT]],
 	PrivateExtractIconsA: [winapi.UINT, [winapi.LPCSTR, winapi.INT, winapi.INT, winapi.INT, winapi.HICON, winapi.UINT, winapi.UINT, winapi.UINT]],
 	PrivateExtractIconsW: [winapi.UINT, [winapi.LPCWSTR, winapi.INT, winapi.INT, winapi.INT, winapi.HICON, winapi.UINT, winapi.UINT, winapi.UINT]],
-	PtInRect: [winapi.BOOL, [winapi.RECT, winapi.POINT]],
+	PtInRect: [winapi.BOOL, [winapi.RECT, winapi.POINT]],/*
 	QueryDisplayConfig: [winapi.LONG, [winapi.UINT32, winapi.UINT32, winapi.DISPLAYCONFIG_PATH_INFO, winapi.UINT32, winapi.DISPLAYCONFIG_MODE_INFO, winapi.DISPLAYCONFIG_TOPOLOGY_ID]],
 	RealChildWindowFromPoint: [winapi.HWND, [winapi.HWND, winapi.POINT]],
-	RealGetWindowClassW: [winapi.UINT, [winapi.HWND, winapi.LPWSTR, winapi.UINT]],
+	RealGetWindowClassW: [winapi.UINT, [winapi.HWND, winapi.LPWSTR, winapi.UINT]],*/
 	RedrawWindow: [winapi.BOOL, [winapi.HWND, winapi.RECT, winapi.HRGN, winapi.UINT]],
 	RegisterClassExA: [winapi.ATOM, [winapi.WNDCLASSEXA]],
 	RegisterClassExW: [winapi.ATOM, [winapi.WNDCLASSEXW]],
-	RegisterClassW: [winapi.ATOM, [winapi.WNDCLASSW]],
+//	RegisterClassW: [winapi.ATOM, [winapi.WNDCLASSW]],
 	RegisterClipboardFormatA: [winapi.UINT, [winapi.LPCSTR]],
 	RegisterClipboardFormatW: [winapi.UINT, [winapi.LPCWSTR]],
-	RegisterDeviceNotificationA: [winapi.HDEVNOTIFY, [winapi.HANDLE, winapi.LPVOID, winapi.DWORD]],
+/*	RegisterDeviceNotificationA: [winapi.HDEVNOTIFY, [winapi.HANDLE, winapi.LPVOID, winapi.DWORD]],
 	RegisterDeviceNotificationW: [winapi.HDEVNOTIFY, [winapi.HANDLE, winapi.LPVOID, winapi.DWORD]],
 	RegisterHotKey: [winapi.BOOL, [winapi.HWND, winapi.INT, winapi.UINT, winapi.UINT]],
 	RegisterPointerDeviceNotifications: [winapi.BOOL, [winapi.HWND, winapi.BOOL]],
@@ -796,7 +983,7 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	SetWindowsHookExW: [winapi.HHOOK, [winapi.INT, winapi.HOOKPROC, winapi.HINSTANCE, winapi.DWORD]],
 	SetWindowTextA: [winapi.BOOL, [winapi.HWND, winapi.LPCSTR]],
 	SetWindowTextW: [winapi.BOOL, [winapi.HWND, winapi.LPCWSTR]],
-	SetWinEventHook: [winapi.HWINEVENTHOOK, [winapi.DWORD, winapi.DWORD, winapi.HMODULE, winapi.WINEVENTPROC, winapi.DWORD, winapi.DWORD, winapi.DWORD]],
+	SetWinEventHook: [winapi.HWINEVENTHOOK, [winapi.DWORD, winapi.DWORD, winapi.HMODULE, winapi.WINEVENTPROC, winapi.DWORD, winapi.DWORD, winapi.DWORD]],*/
 	ShowCaret: [winapi.BOOL, [winapi.HWND]],
 	ShowCursor: [winapi.INT, [winapi.BOOL]],
 	ShowOwnedPopups: [winapi.BOOL, [winapi.HWND, winapi.BOOL]],
@@ -806,7 +993,7 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	ShutdownBlockReasonCreate: [winapi.BOOL, [winapi.HWND, winapi.LPCWSTR]],
 	ShutdownBlockReasonDestroy: [winapi.BOOL, [winapi.HWND]],
 	ShutdownBlockReasonQuery: [winapi.BOOL, [winapi.HWND, winapi.LPWSTR, winapi.DWORD]],
-	SkipPointerFrameMessages: [winapi.BOOL, [winapi.UINT32]],
+	SkipPointerFrameMessages: [winapi.BOOL, [winapi.UINT]],
 	SoundSentry: [winapi.BOOL, []],
 	SubtractRect: [winapi.BOOL, [winapi.LPRECT, winapi.RECT, winapi.RECT]],
 	SwapMouseButton: [winapi.BOOL, [winapi.BOOL]],
@@ -820,17 +1007,17 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	TileWindows: [winapi.WORD, [winapi.HWND, winapi.UINT, winapi.RECT, winapi.UINT, winapi.HWND]],
 	ToAscii: [winapi.INT, [winapi.UINT, winapi.UINT, winapi.BYTE, winapi.LPWORD, winapi.UINT]],
 	ToAsciiEx: [winapi.INT, [winapi.UINT, winapi.UINT, winapi.BYTE, winapi.LPWORD, winapi.UINT, winapi.HKL]],
-	TOUCH_COORD_TO_PIXEL: [winapi.VOID, []],
+//	TOUCH_COORD_TO_PIXEL: [winapi.VOID, []],
 	ToUnicode: [winapi.INT, [winapi.UINT, winapi.UINT, winapi.BYTE, winapi.LPWSTR, winapi.INT, winapi.UINT]],
-	ToUnicodeEx: [winapi.INT, [winapi.UINT, winapi.UINT, winapi.BYTE, winapi.LPWSTR, winapi.INT, winapi.UINT, winapi.HKL]],
+	ToUnicodeEx: [winapi.INT, [winapi.UINT, winapi.UINT, winapi.BYTE, winapi.LPWSTR, winapi.INT, winapi.UINT, winapi.HKL]],/*
 	TrackMouseEvent: [winapi.BOOL, [winapi.LPTRACKMOUSEEVENT]],
 	TrackPopupMenu: [winapi.BOOL, [winapi.HMENU, winapi.UINT, winapi.INT, winapi.INT, winapi.INT, winapi.HWND, winapi.RECT]],
-	TrackPopupMenuEx: [winapi.BOOL, [winapi.HMENU, winapi.UINT, winapi.INT, winapi.INT, winapi.HWND, winapi.LPTPMPARAMS]],
+	TrackPopupMenuEx: [winapi.BOOL, [winapi.HMENU, winapi.UINT, winapi.INT, winapi.INT, winapi.HWND, winapi.LPTPMPARAMS]],*/
 	TranslateAcceleratorA: [winapi.INT, [winapi.HWND, winapi.HACCEL, winapi.LPMSG]],
 	TranslateAcceleratorW: [winapi.INT, [winapi.HWND, winapi.HACCEL, winapi.LPMSG]],
 	TranslateMDISysAccel: [winapi.BOOL, [winapi.HWND, winapi.LPMSG]],
 	TranslateMessage: [winapi.BOOL, [winapi.MSG]],
-	UnhookWindowsHookEx: [winapi.BOOL, [winapi.HHOOK]],
+	UnhookWindowsHookEx: [winapi.BOOL, [winapi.HHOOK]],/*
 	UnhookWinEvent: [winapi.BOOL, [winapi.HWINEVENTHOOK]],
 	UnionRect: [winapi.BOOL, [winapi.LPRECT, winapi.RECT, winapi.RECT]],
 	UnloadKeyboardLayout: [winapi.BOOL, [winapi.HKL]],
@@ -842,14 +1029,14 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	UnregisterPointerInputTargetEx: [winapi.BOOL, [winapi.HWND, winapi.POINTER_INPUT_TYPE]],
 	UnregisterPowerSettingNotification: [winapi.BOOL, [winapi.HPOWERNOTIFY]],
 	UnregisterSuspendResumeNotification: [winapi.BOOL, [winapi.HPOWERNOTIFY]],
-	UnregisterTouchWindow: [winapi.BOOL, [winapi.HWND]],
+	UnregisterTouchWindow: [winapi.BOOL, [winapi.HWND]],/
 	UpdateLayeredWindow: [winapi.BOOL, [winapi.HWND, winapi.HDC, winapi.POINT, winapi.SIZE, winapi.HDC, winapi.POINT, winapi.COLORREF, winapi.BLENDFUNCTION, winapi.DWORD]],
 	UpdateWindow: [winapi.BOOL, [winapi.HWND]],
 	UserHandleGrantAccess: [winapi.BOOL, [winapi.HANDLE, winapi.HANDLE, winapi.BOOL]],
 	ValidateRect: [winapi.BOOL, [winapi.HWND, winapi.RECT]],
 	ValidateRgn: [winapi.BOOL, [winapi.HWND, winapi.HRGN]],
 	VkKeyScanA: [winapi.SHORT, [winapi.CHAR]],
-	VkKeyScanExA: [winapi.SHORT, [winapi.CHAR, winapi.HKL]],
+	VkKeyScanExA: [winapi.SHORT, [winapi.CHAR, winapi.HKL]],*/
 	VkKeyScanExW: [winapi.SHORT, [winapi.WCHAR, winapi.HKL]],
 	VkKeyScanW: [winapi.SHORT, [winapi.WCHAR]],
 	WaitForInputIdle: [winapi.DWORD, [winapi.HANDLE, winapi.DWORD]],
@@ -858,7 +1045,55 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	WindowFromPhysicalPoint: [winapi.HWND, [winapi.POINT]],
 	WindowFromPoint: [winapi.HWND, [winapi.POINT]],
 	WinHelpA: [winapi.BOOL, [winapi.HWND, winapi.LPCSTR, winapi.UINT, winapi.ULONG_PTR]],
-	WinHelpW: [winapi.BOOL, [winapi.HWND, winapi.LPCWSTR, winapi.UINT, winapi.ULONG_PTR]]*/
+	WinHelpW: [winapi.BOOL, [winapi.HWND, winapi.LPCWSTR, winapi.UINT, winapi.ULONG_PTR]]
 });
-current.MessageBoxA(ref.NULL, ref.allocCString("Mire al cielo"), "un programa\0 muy interesante", 0);
+//console.log([winapi.HWND, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATEW, winapi.HWND, winapi.DLGPROC, winapi.LPARAM]])
+var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,(hwnd,uMsg,wParam,lParam)=>{
+	switch(uMsg){
+		case 2:
+			current.PostQuitMessage(0);
+			return 0;
+	}
+	var r=current.DefWindowProcA(hwnd,uMsg,wParam,lParam);
+	console.log('is this executed',uMsg,r);
+	return r;
+})
+//current.MessageBoxA(ref.NULL, ref.allocCString("Mire al cielo"), "un programa muy interesante", 0);
+var charp=ref.allocCString("ayy lmao hope this works\0\0\0\0");
+var wn=new winapi.WNDCLASSA({lpszClassName:charp,lpfnWndProc:WindowProc,hInstance:ref.NULL});
+current.RegisterClassA(wn.ref());
+var hwnd=current.CreateWindowExA(0,charp,"hello boris\0\0\0\0",(0x00000000 | 0x00C00000 | 0x00080000 | 0x00040000 | 0x00020000 | 0x00010000),-2147483648,-2147483648,-2147483648,-2147483648,ref.NULL,ref.NULL,ref.NULL,ref.NULL);
+console.log("I am okay with this");
+if(hwnd==ref.NULL){
+console.log("CreateWindow didn't work :/")
+}else{
+	console.log(hwnd.type)
+	current.ShowWindow(hwnd,0);
+	//current.ShowWindow(hwnd,0);
+	var msg=new winapi.MSG();
+	console.log(buf2hex(msg["ref.buffer"]));
+	current.GetMessageA.async(msg.ref(),ref.NULL,0,0,(err,res)=>{
+		console.log("got message!")
+	});
+	//console.log("result:",current.GetMessageA(msg.ref(),ref.NULL,0,0),"got message");
+/*	console.log(buf2hex(msg["ref.buffer"]));
+	current.TranslateMessage(msg.ref());
+	console.log(buf2hex(msg["ref.buffer"]));
+	current.DispatchMessageA(msg.ref());
+	console.log(buf2hex(msg["ref.buffer"]));
+	current.GetMessageA(msg.ref(),ref.NULL,0,0);
+	//never returns
+	console.log("NEVER")
+	while(current.GetMessageA(msg.ref(),ref.NULL,0,0)){
+		console.log("well")
+		current.TranslateMessage(msg.ref());
+		console.log("Translated");
+		current.DispatchMessageA(msg.ref());
+		console.log("Dispatched");
+	}*/
+}
 
+function buf2hex(buffer) { // buffer is an ArrayBuffer
+  return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
+}
+console.log("WHAT");
