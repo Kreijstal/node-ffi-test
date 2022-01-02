@@ -46,7 +46,9 @@ winapi.PCZPCWSTR=winapi.PZPWSTR=winapi.PCZPWSTR=ref.refType(winapi.PWSTR);
 winapi.WCH=winapi.WSTR;
 winapi.NWPSTR=winapi.PWCHAR;
 winapi.VOID= ref.types.void;
-winapi.HANDLE = ref.refType(ref.refType(ref.types.void));//Honestly, what is the difference between a struct of 1 integer and just the integer itself? *thinking face emoji*
+
+winapi.HANDLE = ref.refType(ref.types.int);//Some handles aren't ment to be read.
+winapi.HANDLE2 = ref.types.int;//Others are, I'm not sure how to implement this in a way that pleases everyone.
 //Handles
 winapi.INT= ref.types.int;
 winapi.FLOAT= ref.types.float;
@@ -77,7 +79,8 @@ winapi.BOOLEAN = winapi.BYTE;
 //what is _MAC?
 winapi.HFILE= ref.types.int;
 //if strict winapi.HGDIOBJ = ref.refType(ref.types.void);
-["WND","HOOK","GDIOBJ","EVENT","ICON","INSTANCE","MODULE","RGN","BRUSH","KL","LOCAL","ACCEL","BITMAP","CURSOR","STR","WINSTA","LSURF","SPRITE","RSRC","METAFILE","GLOBAL","LOCAL","COLORSPACE","DC","GLRC","DESK","ENHMETAFILE","FONT","MENU","PALETTE","PEN","WINEVENTHOOK","MONITOR","UMPD","DWP","GESTUREINFO","TOUCHINPUT","SYNTHETICPOINTERDEVICE"].forEach(_=>{winapi["H"+_]=winapi.HANDLE});
+["WND","HOOK","GDIOBJ","EVENT","ICON","INSTANCE","MODULE","RGN","KL","LOCAL","ACCEL","BITMAP","CURSOR","STR","WINSTA","LSURF","SPRITE","RSRC","METAFILE","GLOBAL","LOCAL","COLORSPACE","DC","GLRC","DESK","ENHMETAFILE","FONT","PALETTE","PEN","WINEVENTHOOK","MONITOR","UMPD","DWP","GESTUREINFO","TOUCHINPUT","SYNTHETICPOINTERDEVICE"].forEach(_=>{winapi["H"+_]=winapi.HANDLE});
+["BRUSH","MENU"].forEach(_=>{winapi["H"+_]=winapi.HANDLE2});
 winapi.GLOBALHANDLE = winapi.HANDLE;
 winapi.LOCALHANDLE = winapi.HANDLE;
 winapi.DPI_AWARENESS_CONTEXT = winapi.HANDLE;
@@ -1030,13 +1033,13 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	UnregisterPowerSettingNotification: [winapi.BOOL, [winapi.HPOWERNOTIFY]],
 	UnregisterSuspendResumeNotification: [winapi.BOOL, [winapi.HPOWERNOTIFY]],
 	UnregisterTouchWindow: [winapi.BOOL, [winapi.HWND]],/
-	UpdateLayeredWindow: [winapi.BOOL, [winapi.HWND, winapi.HDC, winapi.POINT, winapi.SIZE, winapi.HDC, winapi.POINT, winapi.COLORREF, winapi.BLENDFUNCTION, winapi.DWORD]],
+	UpdateLayeredWindow: [winapi.BOOL, [winapi.HWND, winapi.HDC, winapi.POINT, winapi.SIZE, winapi.HDC, winapi.POINT, winapi.COLORREF, winapi.BLENDFUNCTION, winapi.DWORD]],*/
 	UpdateWindow: [winapi.BOOL, [winapi.HWND]],
 	UserHandleGrantAccess: [winapi.BOOL, [winapi.HANDLE, winapi.HANDLE, winapi.BOOL]],
 	ValidateRect: [winapi.BOOL, [winapi.HWND, winapi.RECT]],
 	ValidateRgn: [winapi.BOOL, [winapi.HWND, winapi.HRGN]],
 	VkKeyScanA: [winapi.SHORT, [winapi.CHAR]],
-	VkKeyScanExA: [winapi.SHORT, [winapi.CHAR, winapi.HKL]],*/
+	VkKeyScanExA: [winapi.SHORT, [winapi.CHAR, winapi.HKL]],
 	VkKeyScanExW: [winapi.SHORT, [winapi.WCHAR, winapi.HKL]],
 	VkKeyScanW: [winapi.SHORT, [winapi.WCHAR]],
 	WaitForInputIdle: [winapi.DWORD, [winapi.HANDLE, winapi.DWORD]],
@@ -1048,7 +1051,7 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	WinHelpW: [winapi.BOOL, [winapi.HWND, winapi.LPCWSTR, winapi.UINT, winapi.ULONG_PTR]]
 });
 //console.log([winapi.HWND, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATEW, winapi.HWND, winapi.DLGPROC, winapi.LPARAM]])
-var messages={
+winapi.msg=(o=>Object.entries(o).reduce((r, [k, v]) => (r[v]=+k, r), o))({
 0x0000:"WM_NULL",
 0x0001:"WM_CREATE",
 0x0002:"WM_DESTROY",
@@ -1263,14 +1266,41 @@ var messages={
 0x038F:"WM_PENWINLAST",
 0x0400:"WM_USER",
 0x8000:"WM_APP",
-}
+});
+
+console.log(winapi.msg.WM_PAINT,"aaaaaaaaaaaaa");
+switch(15){
+	case winapi.msg.WM_PAINT:
+		console.log('uhm');
+};
+
 var testi=0;
 var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,async (hwnd,uMsg,wParam,lParam)=>{
-	console.log('test',messages[uMsg],testi++);
+	console.log('test',winapi.msg[uMsg],uMsg,testi++);
 	switch(uMsg){
-		case 0xF:
-			console.log("Fianlly a WM_PAINT call!")
-			break;
+		case winapi.msg.WM_CREATE:
+			current.CreateWindowExA(0, 
+				"ChildWClass", 
+                               ref.NULL, 
+                               0x40000000 | 0x00800000, 
+                               0,0,0,0, 
+                               hwnd, 
+                               100, 
+                               ref.NULL, 
+                               ref.NULL); 
+			return 0;
+		case winapi.msg.WM_SIZE:
+			return 0;
+		case winapi.msg.WM_PAINT:
+			console.log("Fianlly a WM_PAINT call!");
+			var ps=new winapi.PAINTSTRUCT();
+			var hdc=current.BeginPaint(hwnd,ps.ref());
+			console.log(buf2hex(ps.rcPaint['ref.buffer']));
+			current.FillRect(hdc,ps.rcPaint.ref(),5);
+			current.EndPaint(hwnd,ps.ref());
+			console.log("Finished Painting!")
+			console.log(buf2hex(ps.rcPaint['ref.buffer']));
+			return 0;
 		case 2:
 			current.PostQuitMessage(0);
 			return 0;
@@ -1279,9 +1309,9 @@ var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,async (hwnd,uMsg,wParam,lParam)
 			return 0;
 	}
 	var r=current.DefWindowProcA(hwnd,uMsg,wParam,lParam);
-	console.log("DefWindowProc returns",messages[uMsg],r);
+	console.log("DefWindowProc returns",winapi.msg[uMsg],r);
 	return r;
-})
+});
 //current.MessageBoxA(ref.NULL, ref.allocCString("Mire al cielo"), "un programa muy interesante", 0);
 var charp=ref.allocCString("ayy lmao hope this works\0\0\0\0");
 var wn=new winapi.WNDCLASSA({lpszClassName:charp,lpfnWndProc:WindowProc,hInstance:ref.NULL});
@@ -1293,26 +1323,8 @@ console.log("CreateWindow didn't work :/")
 }else{
 	
 	current.ShowWindow(hwnd,1);
-	//current.ShowWindow(hwnd,0);
-//	var msg=new winapi.MSG();
-//	console.log(buf2hex(msg["ref.buffer"]));
+	current.UpdateWindow(hwnd);
 
-	//console.log("result:",current.GetMessageA(msg.ref(),ref.NULL,0,0),"got message");
-/*	console.log(buf2hex(msg["ref.buffer"]));
-	current.TranslateMessage(msg.ref());
-	console.log(buf2hex(msg["ref.buffer"]));
-	current.DispatchMessageA(msg.ref());
-	console.log(buf2hex(msg["ref.buffer"]));
-	current.GetMessageA(msg.ref(),ref.NULL,0,0);
-	//never returns
-	console.log("NEVER")
-	while(current.GetMessageA(msg.ref(),ref.NULL,0,0)){
-		console.log("well")
-		current.TranslateMessage(msg.ref());
-		console.log("Translated");
-		current.DispatchMessageA(msg.ref());
-		console.log("Dispatched");
-	}*/
 }
 
 function buf2hex(buffer) { // buffer is an ArrayBuffer
@@ -1320,9 +1332,6 @@ function buf2hex(buffer) { // buffer is an ArrayBuffer
 }
 setTimeout(_=>{
 var msg=new winapi.MSG();
-/*current.GetMessageA.async(msg.ref(),ref.NULL,0,0,(err,res)=>{
-		console.log("got message!")
-	});*/
 console.log("WHAT");
 while(current.GetMessageA(msg.ref(),ref.NULL,0,0)){
 //		console.log("msg")
