@@ -22,15 +22,18 @@ var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,
 	  return result
   },
 );
-var sclass=Buffer.from("Okay let's change this\0",'ucs2');
-var wClass=new winapi.WNDCLASSEXW();
-wClass.cbSize=80;
+var sclass="test\0"//Buffer.from("Okay let's change this\0",'ucs2');
+var wClass=new winapi.WNDCLASSEXA();
+wClass.cbSize=wClass.ref().byteLength;
 wClass.lpfnWndProc=WindowProc;
 wClass.lpszClassName=sclass;
-current.RegisterClassExW(wClass.ref());
+if(current.RegisterClassExA(wClass.ref())){
 var dStyle= winapi.styles.WS_CAPTION|winapi.styles.WS_SYSMENU;
-hwnd=current.CreateWindowExW(0,sclass,Buffer.from("node WinForms!\0",'ucs2'),dStyle,winapi.styles.CW_USEDEFAULT,winapi.styles.CW_USEDEFAULT,600,400,0,0,0,ref.NULL)
+hwnd=current.CreateWindowExA(0,sclass,Buffer.from("node WinForms!\0",'utf-8'),dStyle,winapi.styles.CW_USEDEFAULT,winapi.styles.CW_USEDEFAULT,600,400,0,0,0,ref.NULL)
 current.ShowWindow(hwnd,1);
+}else{
+console.log("Register Class Failed User32/RegisterClassEx")
+}
 /**	ffi.Callback(...winapi.fn.WNDPROC,async (hwnd,uMsg,wParam,lParam)=>{
 	return 0;
 	switch(uMsg){
