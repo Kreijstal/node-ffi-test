@@ -4,16 +4,30 @@ var ArrayType =require('ref-array-napi');
 var StructType = require('ref-struct-napi');
 var Union = require('ref-union-di')(ref);
 var {winapi,user32:current} = require('./winapi.js')
-
-console.log("ref.NULL",ref.NULL,0,ref.NULL==0)
+function buf2hex(buffer) { // buffer is an ArrayBuffer
+  return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
+}
 var testi=0;
 var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,
   (hwnd, uMsg, wParam, lParam) => {
 	  console.log('test',winapi.msg[uMsg],uMsg,testi++);
 	  let result = 0
 	  switch (uMsg) {
+		  case winapi.msg.WM_DESTROY:
+			  console.log("excuse me?");
+			  result =0;
+			  current.PostQuitMessage(0);
+			  break;
 		  case winapi.msg.WM_PAINT:
-			  console.log("being asked to paint");
+			  console.log("Fianlly a WM_PAINT call!");
+			  var ps=new winapi.PAINTSTRUCT();
+			  var hdc=current.BeginPaint(hwnd,ps.ref());
+			  console.log(buf2hex(ps.rcPaint['ref.buffer']));
+			  current.FillRect(hdc,ps.rcPaint.ref(),5);
+			  current.EndPaint(hwnd,ps.ref());
+			  console.log("Finished Painting!")
+			  console.log(buf2hex(ps.rcPaint['ref.buffer']));
+			  return 0;
 		  default:
 			  result = current.DefWindowProcA(hwnd, uMsg, wParam, lParam)
 			  break
@@ -23,14 +37,23 @@ var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,
   },
 );
 var sclass="test\0"//Buffer.from("Okay let's change this\0",'ucs2');
-var wClass=new winapi.WNDCLASSEXA();
-wClass.cbSize=wClass.ref().byteLength;
+var wClass=new winapi.WNDCLASSA();
+//wClass.cbSize=wClass.ref().byteLength;
 wClass.lpfnWndProc=WindowProc;
 wClass.lpszClassName=sclass;
-if(current.RegisterClassExA(wClass.ref())){
+if(current.RegisterClassA(wClass.ref())){
 var dStyle= winapi.styles.WS_CAPTION|winapi.styles.WS_SYSMENU;
-hwnd=current.CreateWindowExA(0,sclass,Buffer.from("node WinForms!\0",'utf-8'),dStyle,winapi.styles.CW_USEDEFAULT,winapi.styles.CW_USEDEFAULT,600,400,0,0,0,ref.NULL)
+hwnd=current.CreateWindowExA(0,sclass,Buffer.from("Esta vaina no sirve!\0",'utf-8'),dStyle,winapi.styles.CW_USEDEFAULT,winapi.styles.CW_USEDEFAULT,600,400,0,0,0,ref.NULL)
 current.ShowWindow(hwnd,1);
+	current.UpdateWindow(hwnd);
+var msg=new winapi.MSG();
+console.log("WHAT");
+while(current.GetMessageA(msg.ref(),0,0,0)){
+//		console.log("msg")
+		current.TranslateMessage(msg.ref());
+		current.DispatchMessageA(msg.ref());
+	}
+	console.log("end of while loop");
 }else{
 console.log("Register Class Failed User32/RegisterClassEx")
 }
@@ -85,13 +108,10 @@ console.log("CreateWindow didn't work :/")
 }else{
 	
 	current.ShowWindow(hwnd,1);
-	current.UpdateWindow(hwnd);
 
 }
 
-function buf2hex(buffer) { // buffer is an ArrayBuffer
-  return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
-}
+
 setTimeout(_=>{
 var msg=new winapi.MSG();
 console.log("WHAT");
