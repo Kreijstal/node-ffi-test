@@ -10,7 +10,7 @@ function buf2hex(buffer) { // buffer is an ArrayBuffer
 var testi=0;
 var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,
   (hwnd, uMsg, wParam, lParam) => {
-	  console.log('test',winapi.msg[uMsg],uMsg,testi++);
+	  console.log('WndProc callback',winapi.msg[uMsg],uMsg.toString(16),testi++);
 	  let result = 0
 	  switch (uMsg) {
 		  case winapi.msg.WM_DESTROY:
@@ -19,14 +19,12 @@ var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,
 			  current.PostQuitMessage(0);
 			  break;
 		  case winapi.msg.WM_PAINT:
-			  console.log("Fianlly a WM_PAINT call!");
 			  var ps=new winapi.PAINTSTRUCT();
 			  var hdc=current.BeginPaint(hwnd,ps.ref());
 			  console.log(buf2hex(ps.rcPaint['ref.buffer']));
 			  current.FillRect(hdc,ps.rcPaint.ref(),5);
 			  current.EndPaint(hwnd,ps.ref());
 			  console.log("Finished Painting!")
-			  console.log(buf2hex(ps.rcPaint['ref.buffer']));
 			  return 0;
 		  default:
 			  result = current.DefWindowProcA(hwnd, uMsg, wParam, lParam)
@@ -45,7 +43,7 @@ if(current.RegisterClassA(wClass.ref())){
 var dStyle= winapi.styles.WS_CAPTION|winapi.styles.WS_SYSMENU;
 hwnd=current.CreateWindowExA(0,sclass,Buffer.from("Esta vaina no sirve!\0",'utf-8'),dStyle,winapi.styles.CW_USEDEFAULT,winapi.styles.CW_USEDEFAULT,600,400,0,0,0,ref.NULL)
 current.ShowWindow(hwnd,1);
-	current.UpdateWindow(hwnd);
+//	current.UpdateWindow(hwnd);
 var msg=new winapi.MSG();
 console.log("WHAT");
 while(current.GetMessageA(msg.ref(),0,0,0)){
