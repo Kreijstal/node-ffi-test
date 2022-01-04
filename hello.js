@@ -22,7 +22,7 @@ var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,
 			  var ps=new winapi.PAINTSTRUCT();
 			  var hdc=current.BeginPaint(hwnd,ps.ref());
 			  console.log(buf2hex(ps.rcPaint['ref.buffer']));
-			  current.FillRect(hdc,ps.rcPaint.ref(),5);
+			  current.FillRect(hdc,ps.rcPaint.ref(),4);
 			  current.EndPaint(hwnd,ps.ref());
 			  console.log("Finished Painting!")
 			  return 0;
