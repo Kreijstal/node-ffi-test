@@ -328,7 +328,7 @@ winapi.WNDCLASSEXW=StructType({
 createWinapiPointers();
 
 winapi.fn.User32= {  'MessageBoxA': [ 'int', [ winapi.HWND, winapi.LPCSTR, winapi.LPCSTR, winapi.UINT ] ],
-'RegisterClassA':[winapi.ATOM,[winapi.PWNDCLASSA]],
+'RegisterClassA':[winapi.ATOM,[winapi.PWNDCLASSA]],/*
 ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	AddClipboardFormatListener: [winapi.BOOL, [winapi.HWND]],
 	AdjustWindowRect: [winapi.BOOL, [winapi.LPRECT, winapi.DWORD, winapi.BOOL]],
@@ -342,8 +342,8 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	AreDpiAwarenessContextsEqual: [winapi.BOOL, [winapi.DPI_AWARENESS_CONTEXT, winapi.DPI_AWARENESS_CONTEXT]],
 	ArrangeIconicWindows: [winapi.UINT, [winapi.HWND]],
 	AttachThreadInput: [winapi.BOOL, [winapi.DWORD, winapi.DWORD, winapi.BOOL]],
-	BeginDeferWindowPos: [winapi.HDWP, [winapi.INT]],
-	BeginPaint: [winapi.HDC, [winapi.HWND, winapi.LPPAINTSTRUCT]],
+	BeginDeferWindowPos: [winapi.HDWP, [winapi.INT]],*/
+	BeginPaint: [winapi.HDC, [winapi.HWND, winapi.LPPAINTSTRUCT]],/*
 	BlockInput: [winapi.BOOL, [winapi.BOOL]],
 	BringWindowToTop: [winapi.BOOL, [winapi.HWND]],
 	BroadcastSystemMessage: [winapi.LONG, [winapi.DWORD, winapi.LPDWORD, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
@@ -427,13 +427,13 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	CreateMenu: [winapi.HMENU, []],
 	CreatePopupMenu: [winapi.HMENU, []],
 	CreateSyntheticPointerDevice: [winapi.HSYNTHETICPOINTERDEVICE, [winapi.POINTER_INPUT_TYPE, winapi.ULONG, winapi.POINTER_FEEDBACK_MODE]],
-//	CreateWindowA: [winapi.VOID, [winapi.LPCTSTR, winapi.LPCTSTR, winapi.DWORD, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.HWND, winapi.HMENU, winapi.HINSTANCE, winapi.LPVOID]],
+//	CreateWindowA: [winapi.VOID, [winapi.LPCTSTR, winapi.LPCTSTR, winapi.DWORD, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.HWND, winapi.HMENU, winapi.HINSTANCE, winapi.LPVOID]],*/
 	CreateWindowExA: [winapi.HWND, [winapi.DWORD, winapi.LPCSTR, winapi.LPCSTR, winapi.DWORD, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.HWND, winapi.HMENU, winapi.HINSTANCE, winapi.LPVOID]],
 	CreateWindowExW: [winapi.HWND, [winapi.DWORD, winapi.LPCWSTR, winapi.LPCWSTR, winapi.DWORD, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.HWND, winapi.HMENU, winapi.HINSTANCE, winapi.LPVOID]],/*
 	CreateWindowStationA: [winapi.HWINSTA, [winapi.LPCSTR, winapi.DWORD, winapi.ACCESS_MASK, winapi.LPSECURITY_ATTRIBUTES]],
-	CreateWindowStationW: [winapi.HWINSTA, [winapi.LPCWSTR, winapi.DWORD, winapi.ACCESS_MASK, winapi.LPSECURITY_ATTRIBUTES]],
-	CreateWindowW: [winapi.VOID, [winapi.LPCTSTR, winapi.LPCTSTR, winapi.DWORD, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.HWND, winapi.HMENU, winapi.HINSTANCE, winapi.LPVOID]],
-	DefDlgProcW: [winapi.LRESULT, [winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
+	CreateWindowStationW: [winapi.HWINSTA, [winapi.LPCWSTR, winapi.DWORD, winapi.ACCESS_MASK, winapi.LPSECURITY_ATTRIBUTES]],*/
+//	CreateWindowW: [winapi.VOID, [winapi.LPCTSTR, winapi.LPCTSTR, winapi.DWORD, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.HWND, winapi.HMENU, winapi.HINSTANCE, winapi.LPVOID]],/*
+	/*DefDlgProcW: [winapi.LRESULT, [winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
 	DeferWindowPos: [winapi.HDWP, [winapi.HDWP, winapi.HWND, winapi.HWND, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.UINT]],
 	DefFrameProcA: [winapi.LRESULT, [winapi.HWND, winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
 	DefFrameProcW: [winapi.LRESULT, [winapi.HWND, winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
@@ -441,7 +441,7 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	DefMDIChildProcW: [winapi.LRESULT  [winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
 	DefRawInputProc: [winapi.LRESULT, [winapi.PRAWINPUT, winapi.INT, winapi.UINT]],*/
 	DefWindowProcA: [winapi.LRESULT, [winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
-	DefWindowProcW: [winapi.LRESULT, [winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
+	DefWindowProcW: [winapi.LRESULT, [winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],/*
 	DeleteMenu: [winapi.BOOL, [winapi.HMENU, winapi.UINT, winapi.UINT]],
 	DeregisterShellHookWindow: [winapi.BOOL, [winapi.HWND]],
 	DestroyAcceleratorTable: [winapi.BOOL, [winapi.HACCEL]],
@@ -455,12 +455,12 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	DialogBoxIndirectA: [winapi.VOID, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATE, winapi.HWND, winapi.DLGPROC]],
 	DialogBoxIndirectParamA: [winapi.INT_PTR, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATEA, winapi.HWND, winapi.DLGPROC, winapi.LPARAM]],
 	DialogBoxIndirectParamW: [winapi.INT_PTR, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATEW, winapi.HWND, winapi.DLGPROC, winapi.LPARAM]],
-	DialogBoxIndirectW: [winapi.VOID, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATE, winapi.HWND, winapi.DLGPROC]],*/
+	DialogBoxIndirectW: [winapi.VOID, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATE, winapi.HWND, winapi.DLGPROC]],/
 	DialogBoxParamA: [winapi.INT_PTR, [winapi.HINSTANCE, winapi.LPCSTR, winapi.HWND, winapi.DLGPROC, winapi.LPARAM]],
 	DialogBoxParamW: [winapi.INT_PTR, [winapi.HINSTANCE, winapi.LPCWSTR, winapi.HWND, winapi.DLGPROC, winapi.LPARAM]],
 //	DialogBoxW: [winapi.VOID, [winapi.HINSTANCE, winapi.LPCTSTR, winapi.HWND, winapi.DLGPROC]],
 	DisableProcessWindowsGhosting: [winapi.VOID, []],
-//	DispatchMessage: [winapi.LRESULT, [winapi.MSG]],
+//	DispatchMessage: [winapi.LRESULT, [winapi.MSG]],*/
 	DispatchMessageA: [winapi.LRESULT, [winapi.PMSG]],
 	DispatchMessageW: [winapi.LRESULT, [winapi.PMSG]],/*
 	DisplayConfigGetDeviceInfo: [winapi.LONG, [winapi.DISPLAYCONFIG_DEVICE_INFO_HEADER]],
@@ -487,7 +487,7 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	DrawText: [winapi.INT, [winapi.HDC, winapi.LPCTSTR, winapi.INT, winapi.LPRECT, winapi.UINT]],
 	DrawTextA: [winapi.INT, [winapi.HDC, winapi.LPCSTR, winapi.INT, winapi.LPRECT, winapi.UINT]],
 	DrawTextExA: [winapi.INT, [winapi.HDC, winapi.LPSTR, winapi.INT, winapi.LPRECT, winapi.UINT, winapi.LPDRAWTEXTPARAMS]],
-	DrawTextExW: [winapi.INT, [winapi.HDC, winapi.LPWSTR, winapi.INT, winapi.LPRECT, winapi.UINT, winapi.LPDRAWTEXTPARAMS]],*/
+	DrawTextExW: [winapi.INT, [winapi.HDC, winapi.LPWSTR, winapi.INT, winapi.LPRECT, winapi.UINT, winapi.LPDRAWTEXTPARAMS]],/
 	DrawTextW: [winapi.INT, [winapi.HDC, winapi.LPCWSTR, winapi.INT, winapi.LPRECT, winapi.UINT]],
 	EmptyClipboard: [winapi.BOOL, []],
 	EnableMenuItem: [winapi.BOOL, [winapi.HMENU, winapi.UINT, winapi.UINT]],
@@ -497,7 +497,7 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	EnableWindow: [winapi.BOOL, [winapi.HWND, winapi.BOOL]],
 	EndDeferWindowPos: [winapi.BOOL, [winapi.HDWP]],
 	EndDialog: [winapi.BOOL, [winapi.HWND, winapi.INT_PTR]],
-	EndMenu: [winapi.BOOL, []],
+	EndMenu: [winapi.BOOL, []],*/
 	EndPaint: [winapi.BOOL, [winapi.HWND, winapi.PPAINTSTRUCT]],
 	EndTask: [winapi.BOOL, [winapi.HWND, winapi.BOOL, winapi.BOOL]],/*
 	EnumChildWindows: [winapi.BOOL, [winapi.HWND, winapi.WNDENUMPROC, winapi.LPARAM]],
@@ -522,10 +522,10 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	EnumWindowStationsW: [winapi.BOOL, [winapi.WINSTAENUMPROCW, winapi.LPARAM]],
 	EqualRect: [winapi.BOOL, [winapi.RECT, winapi.RECT]],
 	EvaluateProximityToPolygon: [winapi.BOOL, [winapi.UINT32, winapi.POINT, winapi.TOUCH_HIT_TESTING_INPUT, winapi.TOUCH_HIT_TESTING_PROXIMITY_EVALUATION]],
-	EvaluateProximityToRect: [winapi.BOOL, [winapi.RECT, winapi.TOUCH_HIT_TESTING_INPUT, winapi.TOUCH_HIT_TESTING_PROXIMITY_EVALUATION]],*/
+	EvaluateProximityToRect: [winapi.BOOL, [winapi.RECT, winapi.TOUCH_HIT_TESTING_INPUT, winapi.TOUCH_HIT_TESTING_PROXIMITY_EVALUATION]],/
 	ExcludeUpdateRgn: [winapi.INT, [winapi.HDC, winapi.HWND]],
 //	ExitWindows: [winapi.VOID, [winapi.INT, winapi.LONG]],
-	ExitWindowsEx: [winapi.BOOL, [winapi.UINT, winapi.DWORD]],
+	ExitWindowsEx: [winapi.BOOL, [winapi.UINT, winapi.DWORD]],*/
 	FillRect: [winapi.INT, [winapi.HDC, winapi.PRECT, winapi.HBRUSH]],
 	FindWindowA: [winapi.HWND, [winapi.LPCSTR, winapi.LPCSTR]],
 	FindWindowExA: [winapi.HWND, [winapi.HWND, winapi.HWND, winapi.LPCSTR, winapi.LPCSTR]],
@@ -622,12 +622,12 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	GetMenuItemCount: [winapi.INT, [winapi.HMENU]],
 	GetMenuItemID: [winapi.UINT, [winapi.HMENU, winapi.INT]],
 	GetMenuItemInfoA: [winapi.BOOL, [winapi.HMENU, winapi.UINT, winapi.BOOL, winapi.LPMENUITEMINFOA]],
-	GetMenuItemInfoW: [winapi.BOOL, [winapi.HMENU, winapi.UINT, winapi.BOOL, winapi.LPMENUITEMINFOW]],*/
+	GetMenuItemInfoW: [winapi.BOOL, [winapi.HMENU, winapi.UINT, winapi.BOOL, winapi.LPMENUITEMINFOW]],*
 	GetMenuItemRect: [winapi.BOOL, [winapi.HWND, winapi.HMENU, winapi.UINT, winapi.LPRECT]],
 	GetMenuState: [winapi.UINT, [winapi.HMENU, winapi.UINT, winapi.UINT]],
 	GetMenuStringA: [winapi.INT, [winapi.HMENU, winapi.UINT, winapi.LPSTR, winapi.INT, winapi.UINT]],
 	GetMenuStringW: [winapi.INT, [winapi.HMENU, winapi.UINT, winapi.LPWSTR, winapi.INT, winapi.UINT]],
-//	GetMessage: [winapi.BOOL, [winapi.LPMSG, winapi.HWND, winapi.UINT, winapi.UINT]],
+//	GetMessage: [winapi.BOOL, [winapi.LPMSG, winapi.HWND, winapi.UINT, winapi.UINT]],*/
 	GetMessageA: [winapi.BOOL, [winapi.LPMSG, winapi.HWND, winapi.UINT, winapi.UINT]],
 	GetMessageExtraInfo: [winapi.LPARAM, []],
 	GetMessagePos: [winapi.DWORD, []],
@@ -840,7 +840,7 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	OpenInputDesktop: [winapi.HDESK, [winapi.DWORD, winapi.BOOL, winapi.ACCESS_MASK]],
 	OpenWindowStationA: [winapi.HWINSTA, [winapi.LPCSTR, winapi.BOOL, winapi.ACCESS_MASK]],
 	OpenWindowStationW: [winapi.HWINSTA, [winapi.LPCWSTR, winapi.BOOL, winapi.ACCESS_MASK]],
-	PackTouchHitTestingProximityEvaluation: [winapi.LRESULT, [winapi.TOUCH_HIT_TESTING_INPUT, winapi.TOUCH_HIT_TESTING_PROXIMITY_EVALUATION]],*/
+	PackTouchHitTestingProximityEvaluation: [winapi.LRESULT, [winapi.TOUCH_HIT_TESTING_INPUT, winapi.TOUCH_HIT_TESTING_PROXIMITY_EVALUATION]],/
 	PaintDesktop: [winapi.BOOL, [winapi.HDC]],
 	PeekMessageA: [winapi.BOOL, [winapi.LPMSG, winapi.HWND, winapi.UINT, winapi.UINT, winapi.UINT]],
 	PeekMessageW: [winapi.BOOL, [winapi.LPMSG, winapi.HWND, winapi.UINT, winapi.UINT, winapi.UINT]],
@@ -857,7 +857,7 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	PtInRect: [winapi.BOOL, [winapi.RECT, winapi.POINT]],/*
 	QueryDisplayConfig: [winapi.LONG, [winapi.UINT32, winapi.UINT32, winapi.DISPLAYCONFIG_PATH_INFO, winapi.UINT32, winapi.DISPLAYCONFIG_MODE_INFO, winapi.DISPLAYCONFIG_TOPOLOGY_ID]],
 	RealChildWindowFromPoint: [winapi.HWND, [winapi.HWND, winapi.POINT]],
-	RealGetWindowClassW: [winapi.UINT, [winapi.HWND, winapi.LPWSTR, winapi.UINT]],*/
+	RealGetWindowClassW: [winapi.UINT, [winapi.HWND, winapi.LPWSTR, winapi.UINT]],/
 	RedrawWindow: [winapi.BOOL, [winapi.HWND, winapi.RECT, winapi.HRGN, winapi.UINT]],
 	RegisterClassExA: [winapi.ATOM, [winapi.PWNDCLASSEXA]],
 	RegisterClassExW: [winapi.ATOM, [winapi.PWNDCLASSEXW]],
@@ -974,13 +974,13 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	SetWindowsHookExW: [winapi.HHOOK, [winapi.INT, winapi.HOOKPROC, winapi.HINSTANCE, winapi.DWORD]],
 	SetWindowTextA: [winapi.BOOL, [winapi.HWND, winapi.LPCSTR]],
 	SetWindowTextW: [winapi.BOOL, [winapi.HWND, winapi.LPCWSTR]],
-	SetWinEventHook: [winapi.HWINEVENTHOOK, [winapi.DWORD, winapi.DWORD, winapi.HMODULE, winapi.WINEVENTPROC, winapi.DWORD, winapi.DWORD, winapi.DWORD]],*/
+	SetWinEventHook: [winapi.HWINEVENTHOOK, [winapi.DWORD, winapi.DWORD, winapi.HMODULE, winapi.WINEVENTPROC, winapi.DWORD, winapi.DWORD, winapi.DWORD]],/
 	ShowCaret: [winapi.BOOL, [winapi.HWND]],
 	ShowCursor: [winapi.INT, [winapi.BOOL]],
 	ShowOwnedPopups: [winapi.BOOL, [winapi.HWND, winapi.BOOL]],
-	ShowScrollBar: [winapi.BOOL, [winapi.HWND, winapi.INT, winapi.BOOL]],
+	ShowScrollBar: [winapi.BOOL, [winapi.HWND, winapi.INT, winapi.BOOL]],*/
 	ShowWindow: [winapi.BOOL, [winapi.HWND, winapi.INT]],
-	ShowWindowAsync: [winapi.BOOL, [winapi.HWND, winapi.INT]],
+	ShowWindowAsync: [winapi.BOOL, [winapi.HWND, winapi.INT]],/*
 	ShutdownBlockReasonCreate: [winapi.BOOL, [winapi.HWND, winapi.LPCWSTR]],
 	ShutdownBlockReasonDestroy: [winapi.BOOL, [winapi.HWND]],
 	ShutdownBlockReasonQuery: [winapi.BOOL, [winapi.HWND, winapi.LPWSTR, winapi.DWORD]],
@@ -1003,10 +1003,10 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	ToUnicodeEx: [winapi.INT, [winapi.UINT, winapi.UINT, winapi.BYTE, winapi.LPWSTR, winapi.INT, winapi.UINT, winapi.HKL]],/*
 	TrackMouseEvent: [winapi.BOOL, [winapi.LPTRACKMOUSEEVENT]],
 	TrackPopupMenu: [winapi.BOOL, [winapi.HMENU, winapi.UINT, winapi.INT, winapi.INT, winapi.INT, winapi.HWND, winapi.RECT]],
-	TrackPopupMenuEx: [winapi.BOOL, [winapi.HMENU, winapi.UINT, winapi.INT, winapi.INT, winapi.HWND, winapi.LPTPMPARAMS]],*/
+	TrackPopupMenuEx: [winapi.BOOL, [winapi.HMENU, winapi.UINT, winapi.INT, winapi.INT, winapi.HWND, winapi.LPTPMPARAMS]],*
 	TranslateAcceleratorA: [winapi.INT, [winapi.HWND, winapi.HACCEL, winapi.LPMSG]],
 	TranslateAcceleratorW: [winapi.INT, [winapi.HWND, winapi.HACCEL, winapi.LPMSG]],
-	TranslateMDISysAccel: [winapi.BOOL, [winapi.HWND, winapi.LPMSG]],
+	TranslateMDISysAccel: [winapi.BOOL, [winapi.HWND, winapi.LPMSG]],*/
 	TranslateMessage: [winapi.BOOL, [winapi.PMSG]],
 	UnhookWindowsHookEx: [winapi.BOOL, [winapi.HHOOK]],/*
 	UnhookWinEvent: [winapi.BOOL, [winapi.HWINEVENTHOOK]],
@@ -1021,7 +1021,7 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	UnregisterPowerSettingNotification: [winapi.BOOL, [winapi.HPOWERNOTIFY]],
 	UnregisterSuspendResumeNotification: [winapi.BOOL, [winapi.HPOWERNOTIFY]],
 	UnregisterTouchWindow: [winapi.BOOL, [winapi.HWND]],/
-	UpdateLayeredWindow: [winapi.BOOL, [winapi.HWND, winapi.HDC, winapi.POINT, winapi.SIZE, winapi.HDC, winapi.POINT, winapi.COLORREF, winapi.BLENDFUNCTION, winapi.DWORD]],*/
+	UpdateLayeredWindow: [winapi.BOOL, [winapi.HWND, winapi.HDC, winapi.POINT, winapi.SIZE, winapi.HDC, winapi.POINT, winapi.COLORREF, winapi.BLENDFUNCTION, winapi.DWORD]],*
 	UpdateWindow: [winapi.BOOL, [winapi.HWND]],
 	UserHandleGrantAccess: [winapi.BOOL, [winapi.HANDLE, winapi.HANDLE, winapi.BOOL]],
 	ValidateRect: [winapi.BOOL, [winapi.HWND, winapi.RECT]],
@@ -1036,7 +1036,7 @@ ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
 	WindowFromPhysicalPoint: [winapi.HWND, [winapi.POINT]],
 	WindowFromPoint: [winapi.HWND, [winapi.POINT]],
 	WinHelpA: [winapi.BOOL, [winapi.HWND, winapi.LPCSTR, winapi.UINT, winapi.ULONG_PTR]],
-	WinHelpW: [winapi.BOOL, [winapi.HWND, winapi.LPCWSTR, winapi.UINT, winapi.ULONG_PTR]]
+	WinHelpW: [winapi.BOOL, [winapi.HWND, winapi.LPCWSTR, winapi.UINT, winapi.ULONG_PTR]]*/
 }
 
 var current = ffi.Library("User32.dll", winapi.fn.User32);

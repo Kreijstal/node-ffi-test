@@ -23,6 +23,7 @@ var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,
 			  var hdc=current.BeginPaint(hwnd,ps.ref());
 			  console.log(buf2hex(ps.rcPaint['ref.buffer']));
 			  current.FillRect(hdc,ps.rcPaint.ref(),4);
+	//				  current.TextOutA(hdc,1,1,"this is a dumb text\0",0);
 			  current.EndPaint(hwnd,ps.ref());
 			  console.log("Finished Painting!")
 			  return 0;
