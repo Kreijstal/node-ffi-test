@@ -1,7 +1,7 @@
 var ffi =require('ffi-napi')
 var ref = require('ref-napi');
 var ArrayType =require('ref-array-napi');
-var StructType = require('ref-struct-napi');
+var StructType = require('ref-struct-di')(ref);
 var Union = require('ref-union-di')(ref);
 var {winapi,user32,gdi32} = require('./winapi.js')
 var util=require('util')
@@ -17,7 +17,7 @@ var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,
 	  let result = 0
 	  switch (uMsg) {
 		  case winapi.msg.WM_DESTROY:
-			  //console.log("excuse me?");
+			  console.log("excuse me?");
 			  result =0;
 			  user32.PostQuitMessage(0);
 			  break;
@@ -39,17 +39,16 @@ var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,
   },
 );
 var sclass="test\0"//Buffer.from("Okay let's change this\0",'ucs2');
-var wClass=new winapi.WNDCLASSA();
-//wClass.cbSize=wClass.ref().byteLength;
-wClass.lpfnWndProc=WindowProc;
-wClass.lpszClassName=sclass;
+
 console.log("winapi.KBDLLHOOKSTRUCT.size",winapi.KBDLLHOOKSTRUCT.size)
 var keyHandler=ffi.Callback(...winapi.fn.HOOKPROC,(nCode,wParam,lParam)=>{
-	console.log(`keyHandler message, 0 means key message: ${nCode} lParam "address":${ref.address(lParam)}`);
+	//console.log(`keyHandler message, 0 means key message: ${nCode} lParam "address":${ref.address(lParam)}`);
 	if(nCode==0){
-		lParam.length = 24; 
+
 		//console.log(`vkCode:${(new winapi.KBDLLHOOKSTRUCT(ref.reinterpret(lParam,winapi.KBDLLHOOKSTRUCT.size,0))).vkCode}`)
-		console.log((new winapi.KBDLLHOOKSTRUCT(lParam)).vkCode);
+		//lmao=lParam
+		var vkCode=(new winapi.KBDLLHOOKSTRUCT(ref.reinterpret(lParam,winapi.KBDLLHOOKSTRUCT.size))).vkCode;
+		if(vkCode<256)console.log(winapi.keys.get(vkCode)||String.fromCharCode(vkCode))
 		//((KBDLLHOOKSTRUCT *) lParam)->vkCode
 		
 	}
@@ -57,7 +56,11 @@ var keyHandler=ffi.Callback(...winapi.fn.HOOKPROC,(nCode,wParam,lParam)=>{
             wParam, lParam);
 })
 var hookHandle= user32.SetWindowsHookExA(WH_KEYBOARD_LL, keyHandler, 0, 0)
-
+function* meme(){
+var wClass=new winapi.WNDCLASSA();
+//wClass.cbSize=wClass.ref().byteLength;
+wClass.lpfnWndProc=WindowProc;
+wClass.lpszClassName=sclass;
 if(user32.RegisterClassA(wClass.ref())){
 	var dStyle= winapi.styles.WS_CAPTION|winapi.styles.WS_SYSMENU;
 	var hwnd=user32.CreateWindowExA(0,sclass,Buffer.from("Esta vaina no sirve!\0",'utf-8'),winapi.styles.WS_OVERLAPPEDWINDOW,winapi.styles.CW_USEDEFAULT,winapi.styles.CW_USEDEFAULT,600,400,0,0,0,ref.NULL);
@@ -66,18 +69,38 @@ if(user32.RegisterClassA(wClass.ref())){
 		//	user32.UpdateWindow(hwnd);
 		var msg=new winapi.MSG();
 		console.log("WHAT");
-		while(user32.GetMessageA(msg.ref(),0,0,0)){
+		while(true){
+			//using PeekMessage instead of GetMessageA because it blocks node :(
+		while(user32.PeekMessageA(msg.ref(),0,0,0,winapi.styles.PM_REMOVE)){
 			//		console.log("msg")
 			user32.TranslateMessage(msg.ref());
 			user32.DispatchMessageA(msg.ref());
 		}
+		if (msg.message==winapi.msg.WM_QUIT){
+			console.log('test');
+			break;
+		}
+		yield true;
+		}
 		console.log("end of while loop");
+		yield false;
 	}else{
-		console.err("CreateWindow failed to create window..");
+		console.error("CreateWindow failed to create window..");
+		yield false;
 	}
 }else{
-	console.err("Register Class Failed User32/RegisterClassEx")
+	console.error("Register Class Failed User32/RegisterClassEx")
+	yield false;
 }
+}
+var x=meme();
+var isInputBlocked=user32.BlockInput(1);
+console.log(`INPUT HAS BEEN BLOCKED? ${isInputBlocked}`)
+setTimeout(_=>{user32.BlockInput(0);
+console.log("INPUT should HAve BEEN unBLOCKED")
+},5000);//5 seconds
+
+setInterval(_=>{WindowProc;keyHandler;x.next()},50)
 /**	ffi.Callback(...winapi.fn.WNDPROC,async (hwnd,uMsg,wParam,lParam)=>{
 	return 0;
 	switch(uMsg){
