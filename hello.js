@@ -8,7 +8,7 @@ var util=require('util')
 var user32async=Object.fromEntries(Object.entries(user32).map(([k,v])=>[k,util.promisify(v.async)]))
 var gdi32async=Object.fromEntries(Object.entries(gdi32).map(([k,v])=>[k,util.promisify(v.async)]))
 function buf2hex(buffer) { // buffer is an ArrayBuffer
-  return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
+  return buffer.toString('hex')// Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
 }
 var  WH_KEYBOARD_LL=13
 var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,
@@ -48,14 +48,21 @@ var keyHandler=ffi.Callback(...winapi.fn.HOOKPROC,(nCode,wParam,lParam)=>{
 		//console.log(`vkCode:${(new winapi.KBDLLHOOKSTRUCT(ref.reinterpret(lParam,winapi.KBDLLHOOKSTRUCT.size,0))).vkCode}`)
 		//lmao=lParam
 		var vkCode=(new winapi.KBDLLHOOKSTRUCT(ref.reinterpret(lParam,winapi.KBDLLHOOKSTRUCT.size))).vkCode;
-		if(vkCode<256)console.log(winapi.keys.get(vkCode)||String.fromCharCode(vkCode))
+		var key;
+		if(vkCode<256)console.log(key=(winapi.keys.get(vkCode)||String.fromCharCode(vkCode)))
 		//((KBDLLHOOKSTRUCT *) lParam)->vkCode
 		
 	}
+	//block t
+	if(key=="T"){setTimeout(_=>user32.CallNextHookEx(hookHandle, nCode, 
+	wParam, lParam),1000);return 1;}
 	return user32.CallNextHookEx(hookHandle, nCode, 
             wParam, lParam);
 })
-var hookHandle= user32.SetWindowsHookExA(WH_KEYBOARD_LL, keyHandler, 0, 0)
+var hookHandle= user32.SetWindowsHookExA(WH_KEYBOARD_LL, keyHandler, 0, 0);
+var testtt=Buffer.allocUnsafe(4)
+user32.GetRawInputDeviceList(ref.NULL,testt,16);
+testtt.readUint32LE();
 function* meme(){
 var wClass=new winapi.WNDCLASSA();
 //wClass.cbSize=wClass.ref().byteLength;

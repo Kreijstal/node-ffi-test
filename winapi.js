@@ -24,7 +24,7 @@ ref.types.WCString.set = function set (buf, offset, val) {
 	for (var i = wchar_size - 1; i < _buf.length; i += wchar_size) {
 		_buf[i] = val.charCodeAt(l++)
 	}
-	return buf.writePointer(_buf, offset)
+	return buf.writePointer(_buf, offset);
 };
 // Define Winapi types according to 
 //  https://msdn.microsoft.com/en-us/library/windows/desktop/aa383751%28v=vs.85%29.aspx
@@ -49,7 +49,7 @@ winapi.WCH=winapi.WSTR;
 winapi.NWPSTR=winapi.PWCHAR;
 winapi.VOID= ref.types.void;
 
-winapi.HANDLE = ref.refType(ref.types.void);//Some handles aren't ment to be read.
+winapi.HANDLE = ref.refType(ref.types.void);//Some handles aren't meant to be read.
 //hardcoding 64bit for now
 winapi.HANDLE2 = ref.types.uint64;//Others are, I'm not sure how to implement this in a way that pleases everyone.
 //Handles
@@ -81,7 +81,7 @@ winapi.BOOLEAN = winapi.BYTE;
 //what is _MAC?
 winapi.HFILE= ref.types.int;
 //if strict winapi.HGDIOBJ = ref.refType(ref.types.void);
-["ICON","HOOK","GDIOBJ","EVENT","MODULE","RGN","KL","LOCAL","ACCEL","BITMAP","CURSOR","STR","WINSTA","LSURF","SPRITE","RSRC","METAFILE","GLOBAL","LOCAL","COLORSPACE","DC","GLRC","DESK","ENHMETAFILE","FONT","PALETTE","PEN","WINEVENTHOOK","MONITOR","UMPD","DWP","GESTUREINFO","TOUCHINPUT","SYNTHETICPOINTERDEVICE"].forEach(_=>{winapi["H"+_]=winapi.HANDLE2});
+["ICON","HOOK","GDIOBJ","EVENT","MODULE","RGN","KL","LOCAL","ACCEL","BITMAP","CURSOR","STR","WINSTA","LSURF","SPRITE","RSRC","METAFILE","GLOBAL","LOCAL","COLORSPACE","DC","GLRC","DESK","ENHMETAFILE","FONT","PALETTE","PEN","WINEVENTHOOK","MONITOR","UMPD","DWP","GESTUREINFO","TOUCHINPUT","SYNTHETICPOINTERDEVICE","RAWINPUT"].forEach(_=>{winapi["H"+_]=winapi.HANDLE2});
 ["WND","BRUSH","MENU","INSTANCE"].forEach(_=>{winapi["H"+_]=winapi.HANDLE2});
 winapi.GLOBALHANDLE = winapi.HANDLE;
 winapi.LOCALHANDLE = winapi.HANDLE;
@@ -277,6 +277,57 @@ winapi.ICONINFO=StructType({
 	hbmColor:winapi.HBITMAP,
 });
 
+winapi.RAWINPUTDEVICE=StructType({
+  usUsagePage:winapi.USHORT,
+  usUsage:winapi.USHORT,
+  dwFlags:winapi.DWORD,
+  hwndTarget:winapi.HWND
+});
+winapi.RAWHID=StructType({
+  dwSizeHid:winapi.DWORD,
+  dwCount:winapi.DWORD,
+  bRawData:ArrayType(winapi.BYTE,1)
+});
+winapi.RAWKEYBOARD=StructType({
+	MakeCode:winapi.USHORT, 
+    Flags:winapi.USHORT,
+    Reserved:winapi.USHORT,
+    VKey:winapi.USHORT,
+    Message:winapi.UINT,
+    ExtraInformation:winapi.ULONG
+});
+winapi.RAWMOUSE=StructType({
+  usFlags:winapi.USHORT,
+  DUMMYUNIONNAME:new Union({
+	  ulButtons:winapi.ULONG,
+	  DUMMYSTRUCTNAME:StructType({
+	  usButtonFlags:winapi.USHORT,
+	  usButtonData:winapi.USHORT
+	  })
+  }),
+  ulRawButtons:winapi.ULONG,
+  lLastX:winapi.LONG,
+  lLastY:winapi.LONG,
+  ulExtraInformation:winapi.ULONG
+})
+winapi.RAWINPUTHEADER=StructType({
+	dwType:winapi.DWORD,
+	dwSize:winapi.DWORD,
+	hDevice:winapi.HANDLE,
+	wParam:winapi.WPARAM
+})
+winapi.RAWINPUT=StructType( {
+  header:winapi.RAWINPUTHEADER ,
+  data:new Union({
+	  mouse:winapi.RAWMOUSE,
+	  keyboard:winapi.RAWKEYBOARD,
+	  hid:winapi.RAWHID  
+  })
+})
+winapi.RAWINPUTDEVICELIST=StructType({
+  hDevice:winapi.HANDLE,
+  dwType:winapi.DWORD
+})
 //enum
 ;["DPI_AWARENESS","DPI_HOSTING_BEGAVIOR","POINTER_FEEDBACK_MODE"].forEach(_=>{winapi[_]=ref.types.int});
 winapi.fn.WNDPROC = [winapi.LRESULT,[winapi.HWND,winapi.UINT,winapi.WPARAM,winapi.LPARAM]];
@@ -444,12 +495,12 @@ winapi.fn.User32= {  'MessageBoxA': [ 'int', [ winapi.HWND, winapi.LPCSTR, winap
 	CreateWindowStationW: [winapi.HWINSTA, [winapi.LPCWSTR, winapi.DWORD, winapi.ACCESS_MASK, winapi.LPSECURITY_ATTRIBUTES]],
 	CreateWindowW: [winapi.VOID, [winapi.LPCTSTR, winapi.LPCTSTR, winapi.DWORD, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.HWND, winapi.HMENU, winapi.HINSTANCE, winapi.LPVOID]],
 	DefDlgProcW: [winapi.LRESULT, [winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
-	DeferWindowPos: [winapi.HDWP, [winapi.HDWP, winapi.HWND, winapi.HWND, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.UINT]],
+	DeferWindowPos: [winapi.HDWP, [winapi.HDWP, winapi.HWND, winapi.HWND, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.UINT]],*/
 	DefFrameProcA: [winapi.LRESULT, [winapi.HWND, winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
 	DefFrameProcW: [winapi.LRESULT, [winapi.HWND, winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
 	DefMDIChildProcA: [winapi.LRESULT, [winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
-	DefMDIChildProcW: [winapi.LRESULT  [winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
-	DefRawInputProc: [winapi.LRESULT, [winapi.PRAWINPUT, winapi.INT, winapi.UINT]],*/
+	DefMDIChildProcW: [winapi.LRESULT,  [winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
+	DefRawInputProc: [winapi.LRESULT, [winapi.PRAWINPUT, winapi.INT, winapi.UINT]],
 	DefWindowProcA: [winapi.LRESULT, [winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
 	DefWindowProcW: [winapi.LRESULT, [winapi.HWND, winapi.UINT, winapi.WPARAM, winapi.LPARAM]],
 	DeleteMenu: [winapi.BOOL, [winapi.HMENU, winapi.UINT, winapi.UINT]],
@@ -671,7 +722,7 @@ winapi.fn.User32= {  'MessageBoxA': [ 'int', [ winapi.HWND, winapi.LPCSTR, winap
 	GetPointerPenInfoHistory: [winapi.BOOL, [winapi.UINT32, winapi.UINT32, winapi.POINTER_PEN_INFO]],
 	GetPointerTouchInfo: [winapi.BOOL, [winapi.UINT32, winapi.POINTER_TOUCH_INFO]],
 	GetPointerTouchInfoHistory: [winapi.BOOL, [winapi.UINT32, winapi.UINT32, winapi.POINTER_TOUCH_INFO]],
-	GetPointerType: [winapi.BOOL, [winapi.UINT32, winapi.POINTER_INPUT_TYPE]],
+	GetPointerType: [winapi.BOOL, [winapi.UINT32, winapi.POINTER_INPUT_TYPE]],*/
 	GetPriorityClipboardFormat: [winapi.INT, [winapi.UINT, winapi.INT]],
 	GetProcessDefaultLayout: [winapi.BOOL, [winapi.DWORD]],
 	GetProcessWindowStation: [winapi.HWINSTA, []],
@@ -683,8 +734,8 @@ winapi.fn.User32= {  'MessageBoxA': [ 'int', [ winapi.HWND, winapi.LPCSTR, winap
 	GetRawInputDeviceInfoA: [winapi.UINT, [winapi.HANDLE, winapi.UINT, winapi.LPVOID, winapi.PUINT]],
 	GetRawInputDeviceInfoW: [winapi.UINT, [winapi.HANDLE, winapi.UINT, winapi.LPVOID, winapi.PUINT]],
 	GetRawInputDeviceList: [winapi.UINT, [winapi.PRAWINPUTDEVICELIST, winapi.PUINT, winapi.UINT]],
-	GetRawPointerDeviceData: [winapi.BOOL, [winapi.UINT32, winapi.UINT32, winapi.UINT32, winapi.POINTER_DEVICE_PROPERTY, winapi.LONG]],
-	GetRegisteredRawInputDevices: [winapi.UINT, [winapi.PRAWINPUTDEVICE, winapi.PUINT, winapi.UINT]],
+	//GetRawPointerDeviceData: [winapi.BOOL, [winapi.UINT32, winapi.UINT32, winapi.UINT32, winapi.POINTER_DEVICE_PROPERTY, winapi.LONG]],
+	GetRegisteredRawInputDevices: [winapi.UINT, [winapi.PRAWINPUTDEVICE, winapi.PUINT, winapi.UINT]],/*
 	GetScrollBarInfo: [winapi.BOOL, [winapi.HWND, winapi.LONG, winapi.PSCROLLBARINFO]],
 	GetScrollInfo: [winapi.BOOL, [winapi.HWND, winapi.INT, winapi.LPSCROLLINFO]],
 	GetScrollPos: [winapi.INT, [winapi.HWND, winapi.INT]],
