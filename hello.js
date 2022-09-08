@@ -1,12 +1,33 @@
 var ffi =require('ffi-napi')
 var ref = require('ref-napi');
-var ArrayType =require('ref-array-napi');
+var ArrayType =require('ref-array-di')(ref);
 var StructType = require('ref-struct-di')(ref);
 var Union = require('ref-union-di')(ref);
 var {winapi,user32,gdi32} = require('./winapi.js')
 var util=require('util')
-var user32async=Object.fromEntries(Object.entries(user32).map(([k,v])=>[k,util.promisify(v.async)]))
-var gdi32async=Object.fromEntries(Object.entries(gdi32).map(([k,v])=>[k,util.promisify(v.async)]))
+//doesn't work because it calls it from another thread, and it's even slower.
+//var user32async=Object.fromEntries(Object.entries(user32).map(([k,v])=>[k,util.promisify(v.async)]))
+//var gdi32async=Object.fromEntries(Object.entries(gdi32).map(([k,v])=>[k,util.promisify(v.async)]))
+Buffer.prototype._toJSON=Buffer.prototype.toJSON
+Buffer.prototype.toJSON=function toJSON(){
+var obj=this._toJSON();
+var size=this.type.size;
+var indirection=this.type.indirection;
+var type=this.type.name;
+var address=this.address();
+return {...obj,size,indirection,type,address};
+}
+function errorHandling(fn,errcondition){
+	return (..._)=>{var result;
+	result=fn(..._);
+	if(errcondition(result)){
+		var error=user32.getLastError();
+		console.log("function errored",{result,error});
+		
+	}else{return 0;}
+	}	
+}
+function nonZero(i){return i!==0}
 function buf2hex(buffer) { // buffer is an ArrayBuffer
   return buffer.toString('hex')// Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
 }
@@ -38,7 +59,7 @@ var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,
 	  return result
   },
 );
-var sclass="test\0"//Buffer.from("Okay let's change this\0",'ucs2');
+
 
 console.log("winapi.KBDLLHOOKSTRUCT.size",winapi.KBDLLHOOKSTRUCT.size)
 var keyHandler=ffi.Callback(...winapi.fn.HOOKPROC,(nCode,wParam,lParam)=>{
@@ -61,11 +82,19 @@ var keyHandler=ffi.Callback(...winapi.fn.HOOKPROC,(nCode,wParam,lParam)=>{
 })
 var hookHandle= user32.SetWindowsHookExA(WH_KEYBOARD_LL, keyHandler, 0, 0);
 var testtt=Buffer.allocUnsafe(4)
-user32.GetRawInputDeviceList(ref.NULL,testt,16);
-testtt.readUint32LE();
+var winapi.goodies={}
+user32.goodies.GetRawInputDeviceList=errorHandling(user32.GetRawInputDeviceList,nonZero)
+user32.goodies.GetRawInputDeviceList(ref.NULL,testtt,winapi.RAWINPUTDEVICELIST.size);
+console.log("Number of devices:",testtt.readUint32LE());
+var devices=new (ArrayType(winapi.RAWINPUTDEVICELIST))(testtt.readUint32LE())
+//var devices=Buffer.allocUnsafe(winapi.RAWINPUTDEVICELIST.size*testtt.readUint32LE());
+user32.goodies.GetRawInputDeviceList(devices.buffer,testtt,winapi.RAWINPUTDEVICELIST.size);
+console.log("Number of devices read:",testtt.readUint32LE());
+devices.toJSON().map(_=>Object.fromEntries(Object.entries(_.toJSON()).map(([k,v])=>[k,(v.toJSON)?v.toJSON():v])))
 function* meme(){
 var wClass=new winapi.WNDCLASSA();
 //wClass.cbSize=wClass.ref().byteLength;
+var sclass="test\0"//Buffer.from("Okay let's change this\0",'ucs2');
 wClass.lpfnWndProc=WindowProc;
 wClass.lpszClassName=sclass;
 if(user32.RegisterClassA(wClass.ref())){
@@ -101,13 +130,13 @@ if(user32.RegisterClassA(wClass.ref())){
 }
 }
 var x=meme();
-var isInputBlocked=user32.BlockInput(1);
+/*var isInputBlocked=user32.BlockInput(1);
 console.log(`INPUT HAS BEEN BLOCKED? ${isInputBlocked}`)
 setTimeout(_=>{user32.BlockInput(0);
 console.log("INPUT should HAve BEEN unBLOCKED")
-},5000);//5 seconds
+},5000);//5 seconds*/
 
-setInterval(_=>{WindowProc;keyHandler;x.next()},50)
+setInterval(_=>{WindowProc;keyHandler;x.next()},0)
 /**	ffi.Callback(...winapi.fn.WNDPROC,async (hwnd,uMsg,wParam,lParam)=>{
 	return 0;
 	switch(uMsg){

@@ -5,6 +5,7 @@ var StructType = require('ref-struct-di')(ref);
 var Union = require('ref-union-di')(ref);
 
 
+
 var wchar_size = process.platform == 'win32' ? 2 : 4;
 ref.types.wchar_t = ref.types.ushort;
 ref.types.WCString = Object.create(ref.types.CString)
@@ -1567,4 +1568,19 @@ winapi.styles.WS_POPUPWINDOW = winapi.styles.WS_POPUP | winapi.styles.WS_BORDER 
 winapi.styles.WS_TILEDWINDOW = winapi.styles.WS_OVERLAPPED | winapi.styles.WS_CAPTION | winapi.styles.WS_SYSMENU
 	| winapi.styles.WS_THICKFRAME | winapi.styles.WS_MINIMIZEBOX | winapi.styles.WS_MAXIMIZEBOX;
 //console.log((new winapi.PAINTSTRUCT())["ref.buffer"].length,"this length");
+
+
+function errorHandling(fn,errcondition){
+	return (..._)=>{var result;
+	result=fn(..._);
+	if(errcondition(result)){
+		var error=user32.getLastError();
+		console.log("function errored",{result,error});
+		return result;
+	}else{return 0;}
+	}	
+}
+function nonZero(i){return i!==0}
+winapi.goodies={}
+winapi.goodies.GetRawInputDeviceList=errorHandling(user32.GetRawInputDeviceList,nonZero)
 module.exports=({winapi:winapi,user32:current,gdi32:gdi32});
