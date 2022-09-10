@@ -1,6 +1,6 @@
 var ffi =require('ffi-napi')
 var ref = require('ref-napi');
-var ArrayType =require('ref-array-napi');
+var ArrayType =require('ref-array-di')(ref);
 var StructType = require('ref-struct-di')(ref);
 var Union = require('ref-union-di')(ref);
 
@@ -385,10 +385,28 @@ winapi.KBDLLHOOKSTRUCT=StructType({
     dwExtraInfo:winapi.ULONG_PTR
 })
 createWinapiPointers();
+
 winapi.fn.gdi32= {
 	TextOutA:[winapi.BOOL,[winapi.HDC,ref.types.int,ref.types.int,winapi.LPCSTR,ref.types.int]]
 };
-
+winapi.fn.Kernel32={
+  //FormatMessageW: [winapi.DWORD,  [winapi.DWORD, winapi.LPCVOID, winapi.DWORD, winapi.DWORD, winapi.LPTSTR, winapi.DWORD, winapi.va_list],  ],
+  FreeConsole: [winapi.BOOL, [] ],
+ // GenerateConsoleCtrlEvent: [winapi.BOOL, [winapi.DWORD, winapi.DWORD] ],
+  /** err code: https://msdn.microsoft.com/zh-cn/library/windows/desktop/ms681381(v=vs.85).aspx */
+  GetLastError: [winapi.DWORD, [] ],
+  /** retrive value from buf by ret.ref().readUInt32() */
+  //GetModuleHandleW: [winapi.HMODULE, [winapi.LPCTSTR] ],
+  /** flags, optional LPCTSTR name, ref hModule */
+  //GetModuleHandleExW: [winapi.BOOL, [winapi.DWORD, winapi.LPCTSTR, winapi.HMODULE] ],
+  //GetProcessHeaps: [winapi.DWORD, [winapi.DWORD, winapi.PHANDLE] ],
+ // GetSystemTimes: [winapi.BOOL, [winapi.PFILETIME, winapi.PFILETIME, winapi.PFILETIME] ],
+  //HeapFree: [winapi.BOOL, [winapi.HANDLE, winapi.DWORD, winapi.LPVOID] ],
+  //OpenProcess: [winapi.HANDLE, [winapi.DWORD, winapi.BOOL, winapi.DWORD] ],
+  //OutputDebugStringW: [winapi.VOID, [winapi.LPCTSTR] ],
+  SetLastError: [winapi.VOID, [winapi.DWORD] ],
+  SetThreadExecutionState: [winapi.INT, [winapi.INT] ],
+};
 winapi.fn.User32= {  'MessageBoxA': [ 'int', [ winapi.HWND, winapi.LPCSTR, winapi.LPCSTR, winapi.UINT ] ],
 'RegisterClassA':[winapi.ATOM,[winapi.PWNDCLASSA]],
 	ActivateKeyboardLayout: [winapi.HKL, [winapi.HKL, winapi.UINT]],
@@ -932,9 +950,9 @@ winapi.fn.User32= {  'MessageBoxA': [ 'int', [ winapi.HWND, winapi.LPCSTR, winap
 	RegisterPointerDeviceNotifications: [winapi.BOOL, [winapi.HWND, winapi.BOOL]],
 	RegisterPointerInputTarget: [winapi.BOOL, [winapi.HWND, winapi.POINTER_INPUT_TYPE]],
 	RegisterPointerInputTargetEx: [winapi.BOOL, [winapi.HWND, winapi.POINTER_INPUT_TYPE, winapi.BOOL]],
-	RegisterPowerSettingNotification: [winapi.HPOWERNOTIFY, [winapi.HANDLE, winapi.LPCGUID, winapi.DWORD]],
+	RegisterPowerSettingNotification: [winapi.HPOWERNOTIFY, [winapi.HANDLE, winapi.LPCGUID, winapi.DWORD]],*/
 	RegisterRawInputDevices: [winapi.BOOL, [winapi.PCRAWINPUTDEVICE, winapi.UINT, winapi.UINT]],
-	RegisterShellHookWindow: [winapi.BOOL, [winapi.HWND]],
+	RegisterShellHookWindow: [winapi.BOOL, [winapi.HWND]],/*
 	RegisterSuspendResumeNotification: [winapi.HPOWERNOTIFY, [winapi.HANDLE, winapi.DWORD]],
 	RegisterTouchHitTestingWindow: [winapi.BOOL, [winapi.HWND, winapi.ULONG]],
 	RegisterTouchWindow: [winapi.BOOL, [winapi.HWND, winapi.ULONG]],
@@ -1103,6 +1121,7 @@ winapi.fn.User32= {  'MessageBoxA': [ 'int', [ winapi.HWND, winapi.LPCSTR, winap
 
 var current = ffi.Library("User32.dll", winapi.fn.User32);
 var gdi32 = ffi.Library("gdi32.dll", winapi.fn.gdi32);
+var kernel32 = ffi.Library("kernel32.dll", winapi.fn.Kernel32);
 
 //console.log([winapi.HWND, [winapi.HINSTANCE, winapi.LPCDLGTEMPLATEW, winapi.HWND, winapi.DLGPROC, winapi.LPARAM]])
 winapi.msg=(o=>Object.entries(o).reduce((r, [k, v]) => (r[v]=+k, r), o))({
@@ -1560,7 +1579,11 @@ winapi.styles=({WS_BORDER : 0x00800000,
 	PM_NOYIELD : 0x0002,
 	CW_USEDEFAULT : 1 << 31
 });
-
+winapi.RawInputDeviceInformationCommand={
+	RIDI_DEVICENAME : 0x20000007,
+    RIDI_DEVICEINFO : 0x2000000b,
+    RIDI_PREPARSEDDATA : 0x20000005
+}
 
 winapi.styles.WS_OVERLAPPEDWINDOW = winapi.styles.WS_OVERLAPPED | winapi.styles.WS_CAPTION | winapi.styles.WS_SYSMENU
 	| winapi.styles.WS_THICKFRAME | winapi.styles.WS_MINIMIZEBOX | winapi.styles.WS_MAXIMIZEBOX;
@@ -1574,13 +1597,68 @@ function errorHandling(fn,errcondition){
 	return (..._)=>{var result;
 	result=fn(..._);
 	if(errcondition(result)){
-		var error=user32.getLastError();
+		var error=kernel32.GetLastError();
 		console.log("function errored",{result,error});
 		return result;
 	}else{return 0;}
 	}	
 }
+
+var events=require('node:events');
 function nonZero(i){return i!==0}
 winapi.goodies={}
-winapi.goodies.GetRawInputDeviceList=errorHandling(user32.GetRawInputDeviceList,nonZero)
-module.exports=({winapi:winapi,user32:current,gdi32:gdi32});
+winapi.goodies.MSG=new winapi.MSG();
+winapi.goodies.defaultMessageCallback=function(message){
+//	messages.map(_=>{//Performance cost is too great, isn't it amazing?
+			current.TranslateMessage(message.ref());
+			current.DispatchMessageA(message.ref());
+//	});
+};
+winapi.goodies.win32messageHandler=new events();
+function messageFirstTime(e,listener){
+	if(e==="message"&&winapi.goodies.win32messageHandler.listenerCount('message')==0){
+		console.log("interval set")
+		winapi.goodies.win32messageHandler._msgInterval=setInterval(_=>{
+			var i=0;
+			//Don't use GetMessage, it blocks making node unable to do anything else!
+			while(current.PeekMessageA(winapi.goodies.MSG.ref(),0,0,0,winapi.styles.PM_REMOVE)){
+				winapi.goodies.win32messageHandler.emit("message",winapi.goodies.MSG);
+			}
+			
+		},0);
+	}
+}
+winapi.goodies.win32messageHandler.on('newListener',messageFirstTime);
+winapi.goodies.win32messageHandler.on('removeListener',(events,listener)=>{
+	if(events=="message"){
+	if(winapi.goodies.win32messageHandler.listenerCount('message')==0){
+		console.log("removed interval")
+		clearInterval(winapi.goodies.win32messageHandler._msgInterval);
+	}
+	}
+	console.log('#of events removeEvent',winapi.goodies.win32messageHandler.listenerCount(events),events)
+	
+})
+
+winapi.goodies.CreateWindowExA=errorHandling(current.CreateWindowExA,nonZero)
+winapi.goodies.RegisterClassA=errorHandling(current.RegisterClassA,nonZero)
+winapi.goodies.getRawInputDeviceInfo=function(hDevice,uiCommand,pData=ref.NULL){
+	//if(pData==ref.NULL)
+	var strsize=ref.alloc(winapi.UINT);
+	current.GetRawInputDeviceInfoA(hDevice, uiCommand, pData, strsize);
+	pData=Buffer.allocUnsafe(strsize.readUint32LE());
+	var gridi=errorHandling(current.GetRawInputDeviceInfoA,nonZero);
+	gridi(hDevice, uiCommand, pData, strsize);
+	return pData;
+	
+}
+winapi.goodies.getRawInputDeviceList=function getRawInputDeviceList(){
+var gridl=errorHandling(current.GetRawInputDeviceList,_=>_==(-1>>>0));
+var nofdevices=Buffer.allocUnsafe(4); 
+current.GetRawInputDeviceList(ref.NULL,nofdevices,winapi.RAWINPUTDEVICELIST.size);
+var devices=new (ArrayType(winapi.RAWINPUTDEVICELIST))(nofdevices.readUint32LE())
+//var devices=Buffer.allocUnsafe(winapi.RAWINPUTDEVICELIST.size*testtt.readUint32LE());
+gridl(devices.buffer,nofdevices,winapi.RAWINPUTDEVICELIST.size);
+return devices;
+}
+module.exports=({winapi,user32:current,gdi32,kernel32});
