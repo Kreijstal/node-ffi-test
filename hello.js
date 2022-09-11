@@ -3,7 +3,7 @@ var ref = require('ref-napi');
 var ArrayType =require('ref-array-di')(ref);
 var StructType = require('ref-struct-di')(ref);
 var Union = require('ref-union-di')(ref);
-var {winapi,user32,gdi32} = require('./winapi.js')
+var {winapi,user32,gdi32,constants,wintypes} = require('./winapi.js')
 var util=require('util')
 //doesn't work because it calls it from another thread, and it's even slower.
 //var user32async=Object.fromEntries(Object.entries(user32).map(([k,v])=>[k,util.promisify(v.async)]))
@@ -11,30 +11,30 @@ var util=require('util')
 Buffer.prototype._toJSON=Buffer.prototype.toJSON
 Buffer.prototype.toJSON=function toJSON(){
 var obj=this._toJSON();
-var size=this.type.size;
+var size=this?.type?.size;
 var indirection=this.type.indirection;
-var type=this.type.name;
+var type=this?.type?.name;
 var address=this.address();
 return {...obj,size,indirection,type,address};
 }
 
 const  WH_KEYBOARD_LL=13
-var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,
+var WindowProc=ffi.Callback(...wintypes.fn.WNDPROC,
 	(hwnd, uMsg, wParam, lParam) => {
 	  //console.log('WndProc callback',winapi.msg[uMsg],uMsg.toString(16),"wParam:",wParam,"lParam:",ref.address(lParam));
 	  let result = 0
 	  switch (uMsg) {
-		  case winapi.msg.WM_DESTROY:
+		  case constants.msg.WM_DESTROY:
 			  console.log("excuse me?");
 			  winapi.goodies.win32messageHandler.off("message",winapi.goodies.defaultMessageCallback);
 			  result =0;
 			  user32.PostQuitMessage(0);
 			  break;
-		  case winapi.msg.WM_PAINT:
+		  case constants.msg.WM_PAINT:
 		  const DT_SINGLELINE=0x20;
 		  const DT_NOCLIP=0x100;
-			  var ps=new winapi.PAINTSTRUCT();
-			  var rect=new winapi.RECT();
+			  var ps=new wintypes.PAINTSTRUCT();
+			  var rect=new wintypes.RECT();
 			  var hdc=user32.BeginPaint(hwnd,ps.ref());
 			  //console.log(buf2hex(ps.rcPaint['ref.buffer']));
 			  user32.FillRect(hdc,ps.rcPaint.ref(),4);
@@ -53,16 +53,16 @@ var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,
 );
 
 
-console.log("winapi.KBDLLHOOKSTRUCT.size",winapi.KBDLLHOOKSTRUCT.size)
-var keyHandler=ffi.Callback(...winapi.fn.HOOKPROC,(nCode,wParam,lParam)=>{
+console.log("wintypes.KBDLLHOOKSTRUCT.size",wintypes.KBDLLHOOKSTRUCT.size)
+var keyHandler=ffi.Callback(...wintypes.fn.HOOKPROC,(nCode,wParam,lParam)=>{
 	//console.log(`keyHandler message, 0 means key message: ${nCode} lParam "address":${ref.address(lParam)}`);
 	if(nCode==0){
 
-		//console.log(`vkCode:${(new winapi.KBDLLHOOKSTRUCT(ref.reinterpret(lParam,winapi.KBDLLHOOKSTRUCT.size,0))).vkCode}`)
+		//console.log(`vkCode:${(new wintypes.KBDLLHOOKSTRUCT(ref.reinterpret(lParam,wintypes.KBDLLHOOKSTRUCT.size,0))).vkCode}`)
 		//lmao=lParam
-		var kbldstruct=(new winapi.KBDLLHOOKSTRUCT(ref.reinterpret(lParam,winapi.KBDLLHOOKSTRUCT.size)));
+		var kbldstruct=(new wintypes.KBDLLHOOKSTRUCT(ref.reinterpret(lParam,wintypes.KBDLLHOOKSTRUCT.size)));
 		var vkCode=kbldstruct.vkCode
-		var key=(winapi.keys.get(vkCode)||String.fromCharCode(vkCode));
+		var key=(constants.keys.get(vkCode)||String.fromCharCode(vkCode));
 		console.log({...kbldstruct.toJSON(),key})
 		//((KBDLLHOOKSTRUCT *) lParam)->vkCode
 		
@@ -80,22 +80,22 @@ const MOD_SHIFT=0x4;
 if (user32.RegisterHotKey(0,1,MOD_CONTROL | MOD_NOREPEAT,0x42)){
         console.log("Hotkey 'CTRL+b' registered, using MOD_NOREPEAT flag\n");
 }
-var devices=winapi.goodies.getRawInputDeviceList();
- var devecinames=devices.toJSON().map(_=>_.toJSON()).map(_=>winapi.goodies.getRawInputDeviceInfo(_.hDevice,winapi.RawInputDeviceInformationCommand.RIDI_DEVICENAME))
-console.log(devices.toJSON().map(_=>Object.fromEntries(Object.entries(_.toJSON()).map(([k,v])=>[k,(v.toJSON)?v.toJSON():v]))))
-console.log(devices.toJSON().map(_=>_.toJSON()).map(_=>winapi.goodies.getRawInputDeviceInfo(_.hDevice,winapi.RawInputDeviceInformationCommand.RIDI_DEVICENAME)))
+//var devices=winapi.goodies.getRawInputDeviceList();
+//var devecinames=devices._toJSON().map(_=>winapi.goodies.getRawInputDeviceInfo(_.hDevice,constants.RawInputDeviceInformationCommand.RIDI_DEVICENAME))
+//console.log(devices.toJSON().map(_=>Object.fromEntries(Object.entries(_.toJSON()).map(([k,v])=>[k,(v.toJSON)?v.toJSON():v]))))
+//console.log(devices.toJSON().map(_=>_.toJSON()).map(_=>winapi.goodies.getRawInputDeviceInfo(_.hDevice,constants.RawInputDeviceInformationCommand.RIDI_DEVICENAME)))
 //execute message loop on the background
 winapi.goodies.win32messageHandler.on("message",winapi.goodies.defaultMessageCallback);
 winapi.goodies.callbacks=[keyHandler,WindowProc];
 //var hookHandle= user32.SetWindowsHookExA(WH_KEYBOARD_LL, keyHandler, 0, 0);
-var wClass=new winapi.WNDCLASSA();
+var wClass=new wintypes.WNDCLASSA();
 //wClass.cbSize=wClass.ref().byteLength;
 var sclass="test\0"//Buffer.from("Okay let's change this\0",'ucs2');
 wClass.lpfnWndProc=WindowProc;
 wClass.lpszClassName=sclass;
 if(winapi.goodies.RegisterClassA(wClass.ref())){
-	var dStyle= winapi.styles.WS_CAPTION|winapi.styles.WS_SYSMENU;
-	var hwnd=winapi.goodies.CreateWindowExA(0,sclass,Buffer.from("Esta vaina no sirve!\0",'utf-8'),winapi.styles.WS_OVERLAPPEDWINDOW,winapi.styles.CW_USEDEFAULT,winapi.styles.CW_USEDEFAULT,600,400,0,0,0,ref.NULL);
+	var dStyle= constants.styles.WS_CAPTION|constants.styles.WS_SYSMENU;
+	var hwnd=winapi.goodies.CreateWindowExA(0,sclass,Buffer.from("Esta vaina no sirve!\0",'utf-8'),constants.styles.WS_OVERLAPPEDWINDOW,constants.styles.CW_USEDEFAULT,constants.styles.CW_USEDEFAULT,600,400,0,0,0,ref.NULL);
 	if(hwnd){
 		user32.ShowWindow(hwnd,1);
 		//	user32.UpdateWindow(hwnd);
@@ -151,40 +151,17 @@ console.log("INPUT should HAve BEEN unBLOCKED")
 	console.log("DefWindowProc returns",winapi.msg[uMsg],r);
 	return r;
 });*/
-//user32.MessageBoxA(0, ref.allocCString("Mire al cielo"), "un programa muy interesante", 0);
-/*var charp=ref.allocCString("ayy lmao hope this works\0\0\0\0");
-var wn=new winapi.WNDCLASSEXA({lpszClassName:charp,lpfnWndProc:WindowProc,hInstance:0});
-wn.cbSize=wn.ref().byteLength;
-console.log("aA size",wn.ref().byteLength)
-user32.RegisterClassExA(wn.ref());
-var hwnd=user32.CreateWindowExA(0,charp,"hello boris\0\0\0\0",winapi.styles.WS_CAPTION|winapi.styles.WS_SYSMENU,winapi.styles.CW_USEDEFAULT,winapi.styles.CW_USEDEFAULT,600,400,0,0,0,ref.NULL);
-console.log("I am okay with this");
-console.log("THIS IS hwnd!!!!!!!!!!!!!",hwnd)
-if(hwnd==ref.NULL){
-console.log("CreateWindow didn't work :/")
-}else{
-	
-	user32.ShowWindow(hwnd,1);
-
-}
 
 
-setTimeout(_=>{
-var msg=new winapi.MSG();
-console.log("WHAT");
-while(user32.GetMessageA(msg.ref(),0,0,0)){
-//		console.log("msg")
-		user32.TranslateMessage(msg.ref());
-		user32.DispatchMessageA(msg.ref());
-	}
-console.log("END OF WHILE LOOP")
-},5000)
-*/
+
 function displayMessageNames(msg){
-	console.log("message..",winapi.msg[msg.message],msg.message.toString(16));	
-	if(winapi.msg[msg.message]=="WM_HOTKEY"){
-		console.log(String.fromCharCode(msg.lParam>>16))
+	//console.log("message..",constants.msg[msg.message],msg.message.toString(16));	
+	if(constants.msg[msg.message]=="WM_HOTKEY"){
+		//console.log(String.fromCharCode(msg.lParam>>16))
+		if(String.fromCharCode(msg.lParam>>16)=="B"){
+			user32.MessageBoxA(0, ref.allocCString("Mire al cielo"), "un programa muy interesante", 0);
+		}
 	}
 }
-//winapi.goodies.win32messageHandler.on("message",displayMessageNames);
+winapi.goodies.win32messageHandler.on("message",displayMessageNames);
 //winapi.goodies.win32messageHandler.off("message",winapi.goodies.defaultMessageCallback);
