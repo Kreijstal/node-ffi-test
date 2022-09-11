@@ -18,7 +18,7 @@ var address=this.address();
 return {...obj,size,indirection,type,address};
 }
 
-var  WH_KEYBOARD_LL=13
+const  WH_KEYBOARD_LL=13
 var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,
 	(hwnd, uMsg, wParam, lParam) => {
 	  //console.log('WndProc callback',winapi.msg[uMsg],uMsg.toString(16),"wParam:",wParam,"lParam:",ref.address(lParam));
@@ -31,11 +31,15 @@ var WindowProc=ffi.Callback(...winapi.fn.WNDPROC,
 			  user32.PostQuitMessage(0);
 			  break;
 		  case winapi.msg.WM_PAINT:
+		  const DT_SINGLELINE=0x20;
+		  const DT_NOCLIP=0x100;
 			  var ps=new winapi.PAINTSTRUCT();
+			  var rect=new winapi.RECT();
 			  var hdc=user32.BeginPaint(hwnd,ps.ref());
 			  //console.log(buf2hex(ps.rcPaint['ref.buffer']));
 			  user32.FillRect(hdc,ps.rcPaint.ref(),4);
-			  gdi32.TextOutA(hdc,20,20,"this is a test\0",8);
+			  gdi32.TextOutA(hdc,50,50,"this is a test\0",8);
+			  user32.DrawTextA(hdc, "Hello World!", -1, rect.ref(), DT_SINGLELINE | DT_NOCLIP);
 			  user32.EndPaint(hwnd,ps.ref());
 			  //console.log("Finished Painting!")
 			  return 0;
@@ -69,7 +73,13 @@ var keyHandler=ffi.Callback(...winapi.fn.HOOKPROC,(nCode,wParam,lParam)=>{
             wParam, lParam);
 })
 
-
+const MOD_ALT=0x0001;
+const MOD_NOREPEAT=0x4000;
+const MOD_CONTROL=0x2;
+const MOD_SHIFT=0x4;
+if (user32.RegisterHotKey(0,1,MOD_CONTROL | MOD_NOREPEAT,0x42)){
+        console.log("Hotkey 'CTRL+b' registered, using MOD_NOREPEAT flag\n");
+}
 var devices=winapi.goodies.getRawInputDeviceList();
  var devecinames=devices.toJSON().map(_=>_.toJSON()).map(_=>winapi.goodies.getRawInputDeviceInfo(_.hDevice,winapi.RawInputDeviceInformationCommand.RIDI_DEVICENAME))
 console.log(devices.toJSON().map(_=>Object.fromEntries(Object.entries(_.toJSON()).map(([k,v])=>[k,(v.toJSON)?v.toJSON():v]))))
@@ -77,7 +87,7 @@ console.log(devices.toJSON().map(_=>_.toJSON()).map(_=>winapi.goodies.getRawInpu
 //execute message loop on the background
 winapi.goodies.win32messageHandler.on("message",winapi.goodies.defaultMessageCallback);
 winapi.goodies.callbacks=[keyHandler,WindowProc];
-var hookHandle= user32.SetWindowsHookExA(WH_KEYBOARD_LL, keyHandler, 0, 0);
+//var hookHandle= user32.SetWindowsHookExA(WH_KEYBOARD_LL, keyHandler, 0, 0);
 var wClass=new winapi.WNDCLASSA();
 //wClass.cbSize=wClass.ref().byteLength;
 var sclass="test\0"//Buffer.from("Okay let's change this\0",'ucs2');
@@ -170,4 +180,11 @@ while(user32.GetMessageA(msg.ref(),0,0,0)){
 console.log("END OF WHILE LOOP")
 },5000)
 */
+function displayMessageNames(msg){
+	console.log("message..",winapi.msg[msg.message],msg.message.toString(16));	
+	if(winapi.msg[msg.message]=="WM_HOTKEY"){
+		console.log(String.fromCharCode(msg.lParam>>16))
+	}
+}
+//winapi.goodies.win32messageHandler.on("message",displayMessageNames);
 //winapi.goodies.win32messageHandler.off("message",winapi.goodies.defaultMessageCallback);

@@ -68,7 +68,7 @@ winapi.USHORT = ref.types.ushort;
 winapi.LONG_PTR = ref.types.int64;//64bit
 winapi.ULONG_PTR = ref.types.uint64;//64bit
 winapi.LRESULT = winapi.LONG_PTR;
-winapi.LPARAM = ref.refType(ref.types.void);//winapi.LONG_PTR;
+winapi.LPARAM = winapi.LONG_PTR;//ref.refType(ref.types.void);//
 winapi.UINT_PTR = ref.types.ulonglong;//64bit
 winapi.INT_PTR = ref.types.longlong;//64bit
 winapi.WPARAM = winapi.UINT_PTR;
@@ -563,9 +563,9 @@ winapi.fn.User32= {  'MessageBoxA': [ 'int', [ winapi.HWND, winapi.LPCSTR, winap
 	DrawIconEx: [winapi.BOOL, [winapi.HDC, winapi.INT, winapi.INT, winapi.HICON, winapi.INT, winapi.INT, winapi.UINT, winapi.HBRUSH, winapi.UINT]],
 	DrawMenuBar: [winapi.BOOL, [winapi.HWND]],
 	DrawStateA: [winapi.BOOL, [winapi.HDC, winapi.HBRUSH, winapi.DRAWSTATEPROC, winapi.LPARAM, winapi.WPARAM, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.UINT]],
-	DrawStateW: [winapi.BOOL, [winapi.HDC, winapi.HBRUSH, winapi.DRAWSTATEPROC, winapi.LPARAM, winapi.WPARAM, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.UINT]],
-	DrawText: [winapi.INT, [winapi.HDC, winapi.LPCTSTR, winapi.INT, winapi.LPRECT, winapi.UINT]],
-	DrawTextA: [winapi.INT, [winapi.HDC, winapi.LPCSTR, winapi.INT, winapi.LPRECT, winapi.UINT]],
+	DrawStateW: [winapi.BOOL, [winapi.HDC, winapi.HBRUSH, winapi.DRAWSTATEPROC, winapi.LPARAM, winapi.WPARAM, winapi.INT, winapi.INT, winapi.INT, winapi.INT, winapi.UINT]],*/
+	//DrawText: [winapi.INT, [winapi.HDC, winapi.LPCTSTR, winapi.INT, winapi.LPRECT, winapi.UINT]],
+	DrawTextA: [winapi.INT, [winapi.HDC, winapi.LPCSTR, winapi.INT, winapi.LPRECT, winapi.UINT]],/*
 	DrawTextExA: [winapi.INT, [winapi.HDC, winapi.LPSTR, winapi.INT, winapi.LPRECT, winapi.UINT, winapi.LPDRAWTEXTPARAMS]],
 	DrawTextExW: [winapi.INT, [winapi.HDC, winapi.LPWSTR, winapi.INT, winapi.LPRECT, winapi.UINT, winapi.LPDRAWTEXTPARAMS]],*/
 	DrawTextW: [winapi.INT, [winapi.HDC, winapi.LPCWSTR, winapi.INT, winapi.LPRECT, winapi.UINT]],
@@ -628,12 +628,12 @@ winapi.fn.User32= {  'MessageBoxA': [ 'int', [ winapi.HWND, winapi.LPCSTR, winap
 	GetClassInfoA: [winapi.BOOL, [winapi.HINSTANCE, winapi.LPCSTR, winapi.LPWNDCLASSA]],
 	GetClassInfoExA: [winapi.BOOL, [winapi.HINSTANCE, winapi.LPCSTR, winapi.LPWNDCLASSEXA]],
 	GetClassInfoExW: [winapi.BOOL, [winapi.HINSTANCE, winapi.LPCWSTR, winapi.LPWNDCLASSEXW]],
-	GetClassInfoW: [winapi.BOOL, [winapi.HINSTANCE, winapi.LPCWSTR, winapi.LPWNDCLASSW]],
-	GetClassLongA: [winapi.DWORD, [winapi.HWND, winapi.INT]],
+	GetClassInfoW: [winapi.BOOL, [winapi.HINSTANCE, winapi.LPCWSTR, winapi.LPWNDCLASSW]],*/
+	//GetClassLongA: [winapi.DWORD, [winapi.HWND, winapi.INT]],
 	GetClassLongPtrA: [winapi.ULONG_PTR, [winapi.HWND, winapi.INT]],
 	GetClassLongPtrW: [winapi.ULONG_PTR, [winapi.HWND, winapi.INT]],
 	GetClassLongW: [winapi.DWORD, [winapi.HWND, winapi.INT]],
-	GetClassName: [winapi.INT, [winapi.HWND, winapi.LPTSTR, winapi.INT]],
+	//GetClassName: [winapi.INT, [winapi.HWND, winapi.LPTSTR, winapi.INT]],
 	GetClassNameA: [winapi.INT, [winapi.HWND, winapi.LPSTR, winapi.INT]],
 	GetClassNameW: [winapi.INT, [winapi.HWND, winapi.LPWSTR, winapi.INT]],
 	GetClassWord: [winapi.WORD, [winapi.HWND, winapi.INT]],
@@ -644,7 +644,7 @@ winapi.fn.User32= {  'MessageBoxA': [ 'int', [ winapi.HWND, winapi.LPCSTR, winap
 	GetClipboardOwner: [winapi.HWND, []],
 	GetClipboardSequenceNumber: [winapi.DWORD, []],
 	GetClipboardViewer: [winapi.HWND, []],
-	GetClipCursor: [winapi.BOOL, [winapi.LPRECT]],
+	GetClipCursor: [winapi.BOOL, [winapi.LPRECT]],/*
 	GetComboBoxInfo: [winapi.BOOL, [winapi.HWND, winapi.PCOMBOBOXINFO]],
 	GetCurrentInputMessageSource: [winapi.BOOL, [winapi.INPUT_MESSAGE_SOURCE]],
 	GetCursor: [winapi.HCURSOR, []],
@@ -945,9 +945,9 @@ winapi.fn.User32= {  'MessageBoxA': [ 'int', [ winapi.HWND, winapi.LPCSTR, winap
 	RegisterClipboardFormatA: [winapi.UINT, [winapi.LPCSTR]],
 	RegisterClipboardFormatW: [winapi.UINT, [winapi.LPCWSTR]],
 	/*	RegisterDeviceNotificationA: [winapi.HDEVNOTIFY, [winapi.HANDLE, winapi.LPVOID, winapi.DWORD]],
-	RegisterDeviceNotificationW: [winapi.HDEVNOTIFY, [winapi.HANDLE, winapi.LPVOID, winapi.DWORD]],
+	RegisterDeviceNotificationW: [winapi.HDEVNOTIFY, [winapi.HANDLE, winapi.LPVOID, winapi.DWORD]],*/
 	RegisterHotKey: [winapi.BOOL, [winapi.HWND, winapi.INT, winapi.UINT, winapi.UINT]],
-	RegisterPointerDeviceNotifications: [winapi.BOOL, [winapi.HWND, winapi.BOOL]],
+	RegisterPointerDeviceNotifications: [winapi.BOOL, [winapi.HWND, winapi.BOOL]],/*
 	RegisterPointerInputTarget: [winapi.BOOL, [winapi.HWND, winapi.POINTER_INPUT_TYPE]],
 	RegisterPointerInputTargetEx: [winapi.BOOL, [winapi.HWND, winapi.POINTER_INPUT_TYPE, winapi.BOOL]],
 	RegisterPowerSettingNotification: [winapi.HPOWERNOTIFY, [winapi.HANDLE, winapi.LPCGUID, winapi.DWORD]],*/
@@ -1094,8 +1094,8 @@ winapi.fn.User32= {  'MessageBoxA': [ 'int', [ winapi.HWND, winapi.LPCSTR, winap
 	UnloadKeyboardLayout: [winapi.BOOL, [winapi.HKL]],
 	UnregisterClassA: [winapi.BOOL, [winapi.LPCSTR, winapi.HINSTANCE]],
 	UnregisterClassW: [winapi.BOOL, [winapi.LPCWSTR, winapi.HINSTANCE]],
-	UnregisterDeviceNotification: [winapi.BOOL, [winapi.HDEVNOTIFY]],
-	UnregisterHotKey: [winapi.BOOL, [winapi.HWND, winapi.INT]],
+	UnregisterDeviceNotification: [winapi.BOOL, [winapi.HDEVNOTIFY]],*/
+	UnregisterHotKey: [winapi.BOOL, [winapi.HWND, winapi.INT]],/*
 	UnregisterPointerInputTarget: [winapi.BOOL, [winapi.HWND, winapi.POINTER_INPUT_TYPE]],
 	UnregisterPointerInputTargetEx: [winapi.BOOL, [winapi.HWND, winapi.POINTER_INPUT_TYPE]],
 	UnregisterPowerSettingNotification: [winapi.BOOL, [winapi.HPOWERNOTIFY]],
@@ -1610,9 +1610,10 @@ winapi.goodies={}
 winapi.goodies.MSG=new winapi.MSG();
 winapi.goodies.defaultMessageCallback=function(message){
 //	messages.map(_=>{//Performance cost is too great, isn't it amazing?
+//if(winapi.msg[message.message]){
 			current.TranslateMessage(message.ref());
 			current.DispatchMessageA(message.ref());
-//	});
+//}
 };
 winapi.goodies.win32messageHandler=new events();
 function messageFirstTime(e,listener){
