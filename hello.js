@@ -54,7 +54,7 @@ var WindowProc=ffi.Callback(...wintypes.fn.WNDPROC,
 
 
 console.log("wintypes.KBDLLHOOKSTRUCT.size",wintypes.KBDLLHOOKSTRUCT.size)
-var keyHandler=ffi.Callback(...wintypes.fn.HOOKPROC,(nCode,wParam,lParam)=>{
+var keyHandler=ffi.Callback(...wintypes.fn.Hookproc,(nCode,wParam,lParam)=>{
 	//console.log(`keyHandler message, 0 means key message: ${nCode} lParam "address":${ref.address(lParam)}`);
 	if(nCode==0){
 
@@ -72,7 +72,9 @@ var keyHandler=ffi.Callback(...wintypes.fn.HOOKPROC,(nCode,wParam,lParam)=>{
 	return user32.CallNextHookEx(hookHandle, nCode, 
             wParam, lParam);
 })
-
+var proc = ffi.Callback(...wintypes.fn.ThreadProc, () => {
+	user32.MessageBoxA(0, "example", null, constants.msgbox.MB_OK | constants.msgbox.MB_ICONEXCLAMATION);
+});
 const MOD_ALT=0x0001;
 const MOD_NOREPEAT=0x4000;
 const MOD_CONTROL=0x2;
@@ -86,7 +88,7 @@ if (user32.RegisterHotKey(0,1,MOD_CONTROL | MOD_NOREPEAT,0x42)){
 //console.log(devices.toJSON().map(_=>_.toJSON()).map(_=>winapi.goodies.getRawInputDeviceInfo(_.hDevice,constants.RawInputDeviceInformationCommand.RIDI_DEVICENAME)))
 //execute message loop on the background
 winapi.goodies.win32messageHandler.on("message",winapi.goodies.defaultMessageCallback);
-winapi.goodies.callbacks=[keyHandler,WindowProc];
+winapi.goodies.callbacks=[keyHandler,WindowProc,proc];
 //var hookHandle= user32.SetWindowsHookExA(WH_KEYBOARD_LL, keyHandler, 0, 0);
 var wClass=new wintypes.WNDCLASSA();
 //wClass.cbSize=wClass.ref().byteLength;
@@ -159,6 +161,7 @@ function displayMessageNames(msg){
 	if(constants.msg[msg.message]=="WM_HOTKEY"){
 		//console.log(String.fromCharCode(msg.lParam>>16))
 		if(String.fromCharCode(msg.lParam>>16)=="B"){
+			//winapi.kernel32.CreateThread(null, 0, proc, ref.NULL, 0, ref.NULL);
 			user32.MessageBoxA(0, ref.allocCString("Mire al cielo"), "un programa muy interesante", 0);
 		}
 	}

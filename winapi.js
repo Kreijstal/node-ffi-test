@@ -63,11 +63,12 @@ function createWinapiPointers(overkill=false){
 
 
 wintypes.WCHAR=wintypes.WSTR= ref.types.wchar_t;
+wintypes.VOID= ref.types.void;
 createWinapiPointers(true);
 wintypes.PCZPCWSTR=wintypes.PZPWSTR=wintypes.PCZPWSTR=ref.refType(wintypes.PWSTR);
 wintypes.WCH=wintypes.WSTR;
 wintypes.NWPSTR=wintypes.PWCHAR;
-wintypes.VOID= ref.types.void;
+
 
 wintypes.HANDLE = ref.refType(ref.types.void);//Some handles aren't meant to be read.
 //hardcoding 64bit for now
@@ -88,8 +89,10 @@ wintypes.LONG_PTR = ref.types.int64;//64bit
 wintypes.ULONG_PTR = ref.types.uint64;//64bit
 wintypes.LRESULT = wintypes.LONG_PTR;
 wintypes.LPARAM = wintypes.LONG_PTR;//ref.refType(ref.types.void);//
-wintypes.UINT_PTR = ref.types.ulonglong;//64bit
+wintypes.UINT_PTR = wintypes.ULONG_PTR;//64bit
+wintypes.SIZE_T= wintypes.UINT_PTR;
 wintypes.INT_PTR = ref.types.longlong;//64bit
+wintypes.SSIZE_T= wintypes.INT_PTR;
 wintypes.WPARAM = wintypes.UINT_PTR;
 wintypes.WORD = ref.types.ushort;
 wintypes.DWORD = ref.types.ulong;
@@ -101,7 +104,7 @@ wintypes.BOOLEAN = wintypes.BYTE;
 //what is _MAC?
 wintypes.HFILE= ref.types.int;
 //if strict wintypes.HGDIOBJ = ref.refType(ref.types.void);
-["ICON","HOOK","GDIOBJ","EVENT","MODULE","RGN","KL","LOCAL","ACCEL","BITMAP","CURSOR","STR","WINSTA","LSURF","SPRITE","RSRC","METAFILE","GLOBAL","LOCAL","COLORSPACE","DC","GLRC","DESK","ENHMETAFILE","FONT","PALETTE","PEN","WINEVENTHOOK","MONITOR","UMPD","DWP","GESTUREINFO","TOUCHINPUT","SYNTHETICPOINTERDEVICE","RAWINPUT"].forEach(_=>{wintypes["H"+_]=wintypes.HANDLE2});
+["ICON","HOOK","GDIOBJ","EVENT","MODULE","RGN","KL","LOCAL","ACCEL","BITMAP","CURSOR","STR","WINSTA","LSURF","SPRITE","RSRC","METAFILE","GLOBAL","LOCAL","COLORSPACE","DC","GLRC","DESK","ENHMETAFILE","FONT","PALETTE","PEN","WINEVENTHOOK","MONITOR","UMPD","DWP","GESTUREINFO","TOUCHINPUT","SYNTHETICPOINTERDEVICE","RAWINPUT","RESULT"].forEach(_=>{wintypes["H"+_]=wintypes.HANDLE2});
 ["WND","BRUSH","MENU","INSTANCE"].forEach(_=>{wintypes["H"+_]=wintypes.HANDLE2});
 wintypes.GLOBALHANDLE = wintypes.HANDLE;
 wintypes.LOCALHANDLE = wintypes.HANDLE;
@@ -121,6 +124,18 @@ wintypes.POINT=wintypes.POINTL=StructType({
 	x:wintypes.LONG,
 	y:wintypes.LONG
 })
+const tagMOUSEHOOKSTRUCT = {
+	pt: wintypes.POINT,
+	hwnd: wintypes.HWND,
+	wHitTestCode: wintypes.UINT,
+	dwExtraInfo: wintypes.ULONG_PTR
+};
+//Thanks to https://github.com/deskbtm/win32-ffi/blob/master/lib/cpp/user32/win_user_struct.ts
+wintypes.MOUSEHOOKSTRUCT=StructType(tagMOUSEHOOKSTRUCT);
+wintypes.MOUSEHOOKSTRUCTEX =StructType({
+	mouseData: wintypes.DWORD,
+	...tagMOUSEHOOKSTRUCT
+});
 wintypes.POINTS=StructType({
 	x:wintypes.SHORT,
 	y:wintypes.SHORT
@@ -348,14 +363,25 @@ wintypes.RAWINPUTDEVICELIST=StructType({
   hDevice:wintypes.HANDLE,
   dwType:wintypes.DWORD
 })
+//not strictly a windows type
+wintypes.va_list = StructType({
+   gp_offset : ref.types.uint,
+   fp_offset : ref.types.uint,
+   overflow_arg_area : wintypes.PVOID,
+   reg_save_area : wintypes.PVOID
+});
 //enum
 ;["DPI_AWARENESS","DPI_HOSTING_BEGAVIOR","POINTER_FEEDBACK_MODE"].forEach(_=>{wintypes[_]=ref.types.int});
 var fn = {};
 fn.WNDPROC = [wintypes.LRESULT,[wintypes.HWND,wintypes.UINT,wintypes.WPARAM,wintypes.LPARAM]];
 fn.DLGPROC = [wintypes.INT_PTR,[wintypes.HWND,wintypes.UINT,wintypes.WPARAM,wintypes.LPARAM]];
-fn.HOOKPROC = [wintypes.LRESULT,[ref.types.int,wintypes.WPARAM,wintypes.LPARAM]]
+fn.Hookproc = [wintypes.LRESULT,[ref.types.int,wintypes.WPARAM,wintypes.LPARAM]];
+fn.ThreadProc = [wintypes.DWORD, [wintypes.LPVOID]];
+fn.EnumWindowsProc = [wintypes.BOOL,[wintypes.HWND,wintypes.LPARAM]];
 Object.keys(fn).forEach(_=>{wintypes[_]=wintypes.PVOID});
-
+wintypes.THREAD_START_ROUTINE=wintypes.ThreadProc;
+wintypes.WNDENUMPROC=wintypes.ThreadProc;
+wintypes.HOOKPROC=wintypes.Hookproc;
 wintypes.WNDCLASSA = StructType({
 	style: wintypes.UINT,
 	lpfnWndProc: wintypes.WNDPROC,
@@ -404,15 +430,103 @@ wintypes.KBDLLHOOKSTRUCT=StructType({
     time:wintypes.DWORD,
     dwExtraInfo:wintypes.ULONG_PTR
 })
+
 createWinapiPointers();
+
 wintypes.fn=fn;
 var winterface={}
 winterface.gdi32= {
 	TextOutA:[wintypes.BOOL,[wintypes.HDC,ref.types.int,ref.types.int,wintypes.LPCSTR,ref.types.int]]
 };
+//https://github.com/deskbtm/win32-ffi/blob/master/lib/cpp/kernel32/process_threads_api_fns.ts
+//https://github.com/waitingsong/node-win32-api/blob/HEAD/packages/win32-api/src/lib/kernel32/api.ts
 winterface.Kernel32={
-  //FormatMessageW: [wintypes.DWORD,  [wintypes.DWORD, wintypes.LPCVOID, wintypes.DWORD, wintypes.DWORD, wintypes.LPTSTR, wintypes.DWORD, wintypes.va_list],  ],
+  FormatMessageA: [wintypes.DWORD,  [wintypes.DWORD, wintypes.LPCVOID, wintypes.DWORD, wintypes.DWORD, wintypes.LPSTR, wintypes.DWORD, wintypes.va_list] ],
+  FormatMessageW: [wintypes.DWORD,  [wintypes.DWORD, wintypes.LPCVOID, wintypes.DWORD, wintypes.DWORD, wintypes.LPWSTR, wintypes.DWORD, wintypes.PVOID]  ],
   FreeConsole: [wintypes.BOOL, [] ],
+  CreateThread: [wintypes.HANDLE, [wintypes.LPSECURITY_ATTRIBUTES, wintypes.SIZE_T, wintypes.LPTHREAD_START_ROUTINE, wintypes.LPVOID, wintypes.DWORD, wintypes.LPDWORD]],
+  CreateToolhelp32Snapshot: [wintypes.HANDLE,[wintypes.DWORD,wintypes.DWORD]],
+  // CreateProcessAsUserA: [BOOL, [HANDLE, LPCSTR, LPSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, LPVOID, LPCSTR, LPSTARTUPINFOA, LPPROCESS_INFORMATION]],
+	// CreateProcessAsUserW: [BOOL, [HANDLE, LPCWSTR, LPWSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, LPVOID, LPCWSTR, LPSTARTUPINFOW, LPPROCESS_INFORMATION]],
+	// CreateProcessW: [BOOL, [LPCWSTR, LPWSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, LPVOID, LPCWSTR, LPSTARTUPINFOW, LPPROCESS_INFORMATION]],
+	CreateRemoteThread:[wintypes.HANDLE,[wintypes.HANDLE,wintypes.LPSECURITY_ATTRIBUTES,wintypes.SIZE_T ,wintypes.LPTHREAD_START_ROUTINE,wintypes.LPVOID, wintypes.DWORD,wintypes.LPDWORD]],
+	// CreateRemoteThreadEx: [HANDLE, [HANDLE, LPSECURITY_ATTRIBUTES, SIZE_T, LPTHREAD_START_ROUTINE, LPVOID, DWORD, LPPROC_THREAD_ATTRIBUTE_LIST, LPDWORD]]
+	// DeleteProcThreadAttributeList: [VOID, [LPPROC_THREAD_ATTRIBUTE_LIST]],
+	// ExitProcess: [VOID, [UINT]],
+	// FlushInstructionCache: [BOOL, [HANDLE, LPCVOID, SIZE_T]],
+	// FlushProcessWriteBuffers: [VOID, [\placeholder]],
+	// GetCurrentProcess: [HANDLE, [\placeholder]],
+	// GetCurrentProcessId: [DWORD, [\placeholder]],
+	// GetCurrentProcessorNumber: [DWORD, [\placeholder]],
+	// GetCurrentProcessorNumberEx: [VOID, [PPROCESSOR_NUMBER]],
+	// GetCurrentProcessToken: [HANDLE, [\placeholder]],
+	// GetCurrentThread: [HANDLE, [\placeholder]],
+	// GetCurrentThreadEffectiveToken: [HANDLE, [\placeholder]],
+	// GetCurrentThreadId: [DWORD, [\placeholder]],
+	// GetCurrentThreadStackLimits: [VOID, [PULONG_PTR, PULONG_PTR]],
+	// GetCurrentThreadToken: [HANDLE, [\placeholder]],
+	// GetExitCodeProcess: [BOOL, [HANDLE, LPDWORD]],
+	// GetExitCodeThread: [BOOL, [HANDLE, LPDWORD]],
+	// GetPriorityClass: [DWORD, [HANDLE]],
+	// GetProcessHandleCount: [BOOL, [HANDLE, PDWORD]],
+	GetProcessId: [wintypes.DWORD,[wintypes.HANDLE]],
+	// GetProcessIdOfThread: [DWORD, [HANDLE]],
+	// GetProcessInformation: [BOOL, [HANDLE, PROCESS_INFORMATION_CLASS, LPVOID, DWORD]],
+	// GetProcessMitigationPolicy: [BOOL, [HANDLE, PROCESS_MITIGATION_POLICY, PVOID, SIZE_T]],
+	// GetProcessPriorityBoost: [BOOL, [HANDLE, PBOOL]],
+	// GetProcessShutdownParameters: [BOOL, [LPDWORD, LPDWORD]],
+	// GetProcessTimes: [BOOL, [HANDLE, LPFILETIME, LPFILETIME, LPFILETIME, LPFILETIME]],
+	// GetProcessVersion: [DWORD, [DWORD]],
+	// GetStartupInfoW: [VOID, [LPSTARTUPINFOW]],
+	// GetSystemTimes: [BOOL, [PFILETIME, PFILETIME, PFILETIME]],
+	// GetThreadContext: [BOOL, [HANDLE, LPCONTEXT]],
+	// GetThreadDescription: [HRESULT, [HANDLE, PWSTR]],
+	// GetThreadId: [DWORD, [HANDLE]],
+	// GetThreadIdealProcessorEx: [BOOL, [HANDLE, PPROCESSOR_NUMBER]],
+	// GetThreadInformation: [BOOL, [HANDLE, THREAD_INFORMATION_CLASS, LPVOID, DWORD]],
+	// GetThreadIOPendingFlag: [BOOL, [HANDLE, PBOOL]],
+	// GetThreadPriority: [INT, [HANDLE]],
+	// GetThreadPriorityBoost: [BOOL, [HANDLE, PBOOL]],
+	// GetThreadTimes: [BOOL, [HANDLE, LPFILETIME, LPFILETIME, LPFILETIME, LPFILETIME]],
+	// InitializeProcThreadAttributeList: [BOOL, [LPPROC_THREAD_ATTRIBUTE_LIST, DWORD, DWORD, PSIZE_T]],
+	// IsProcessCritical: [BOOL, [HANDLE, PBOOL]],
+	// IsProcessorFeaturePresent: [BOOL, [DWORD]],
+	OpenProcess: [wintypes.HANDLE, [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD] ],
+	// OpenProcessToken: [BOOL, [HANDLE, DWORD, PHANDLE]],
+	// OpenThread: [HANDLE, [DWORD, BOOL, DWORD]],
+	// OpenThreadToken: [BOOL, [HANDLE, DWORD, BOOL, PHANDLE]],
+	// ProcessIdToSessionId: [BOOL, [DWORD, DWORD]],
+	// QueryProcessAffinityUpdateMode: [BOOL, [HANDLE, LPDWORD]],
+	// QueryProtectedPolicy: [BOOL, [LPCGUID, PULONG_PTR]],
+	// QueueUserAPC: [DWORD, [PAPCFUNC, HANDLE, ULONG_PTR]],
+	// ResumeThread: [DWORD, [HANDLE]],
+	// SetPriorityClass: [BOOL, [HANDLE, DWORD]],
+	// SetProcessAffinityUpdateMode: [BOOL, [HANDLE, DWORD]],
+	// SetProcessDynamicEHContinuationTargets: [BOOL, [HANDLE, USHORT, PPROCESS_DYNAMIC_EH_CONTINUATION_TARGET]],
+	// SetProcessInformation: [BOOL, [HANDLE, PROCESS_INFORMATION_CLASS, LPVOID, DWORD]],
+	// SetProcessMitigationPolicy: [BOOL, [PROCESS_MITIGATION_POLICY, PVOID, SIZE_T]],
+	// SetProcessPriorityBoost: [BOOL, [HANDLE, BOOL]],
+	// SetProcessShutdownParameters: [BOOL, [DWORD, DWORD]],
+	// SetProtectedPolicy: [BOOL, [LPCGUID, ULONG_PTR, PULONG_PTR]],
+	// SetThreadContext: [BOOL, [HANDLE, CONST, CONTEXT]],
+	SetThreadDescription: [wintypes.HRESULT, [wintypes.HANDLE, wintypes.PCWSTR]],
+	SetThreadIdealProcessor: [wintypes.DWORD, [wintypes.HANDLE, wintypes.DWORD]],
+	// SetThreadIdealProcessorEx: [BOOL, [HANDLE, PPROCESSOR_NUMBER, PPROCESSOR_NUMBER]],
+	// SetThreadInformation: [BOOL, [HANDLE, THREAD_INFORMATION_CLASS, LPVOID, DWORD]],
+	SetThreadPriority: [wintypes.BOOL, [wintypes.HANDLE, wintypes.INT]],
+	SetThreadPriorityBoost: [wintypes.BOOL, [wintypes.HANDLE, wintypes.BOOL]],
+	SetThreadStackGuarantee: [wintypes.BOOL, [wintypes.PULONG]],
+	SetThreadToken: [wintypes.BOOL, [wintypes.PHANDLE, wintypes.HANDLE]],
+	SetLastError: [wintypes.VOID, [wintypes.DWORD] ],
+	SuspendThread: [wintypes.DWORD, [wintypes.HANDLE]],
+	SwitchToThread: [wintypes.BOOL, []],
+	TerminateProcess: [wintypes.BOOL, [wintypes.HANDLE, wintypes.UINT]],
+	TerminateThread: [wintypes.BOOL, [wintypes.HANDLE, wintypes.DWORD]],
+	// TlsAlloc: [DWORD, [\placeholder]],
+	TlsFree: [wintypes.BOOL, [wintypes.DWORD]],
+	TlsGetValue: [wintypes.LPVOID, [wintypes.DWORD]],
+	TlsSetValue: [wintypes.BOOL, [wintypes.DWORD, wintypes.LPVOID]],
+	// UpdateProcThreadAttribute: [BOOL, [LPPROC_THREAD_ATTRIBUTE_LIST, DWORD, DWORD_PTR, PVOID, SIZE_T, PVOID, PSIZE_T]],
  // GenerateConsoleCtrlEvent: [wintypes.BOOL, [wintypes.DWORD, wintypes.DWORD] ],
   /** err code: https://msdn.microsoft.com/zh-cn/library/windows/desktop/ms681381(v=vs.85).aspx */
   GetLastError: [wintypes.DWORD, [] ],
@@ -423,9 +537,9 @@ winterface.Kernel32={
   //GetProcessHeaps: [wintypes.DWORD, [wintypes.DWORD, wintypes.PHANDLE] ],
  // GetSystemTimes: [wintypes.BOOL, [wintypes.PFILETIME, wintypes.PFILETIME, wintypes.PFILETIME] ],
   //HeapFree: [wintypes.BOOL, [wintypes.HANDLE, wintypes.DWORD, wintypes.LPVOID] ],
-  //OpenProcess: [wintypes.HANDLE, [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD] ],
+  
   //OutputDebugStringW: [wintypes.VOID, [wintypes.LPCTSTR] ],
-  SetLastError: [wintypes.VOID, [wintypes.DWORD] ],
+  
   SetThreadExecutionState: [wintypes.INT, [wintypes.INT] ],
 };
 winterface.User32= {  'MessageBoxA': [ 'int', [ wintypes.HWND, wintypes.LPCSTR, wintypes.LPCSTR, wintypes.UINT ] ],
@@ -1146,6 +1260,64 @@ var kernel32 = ffi.Library("kernel32.dll", winterface.Kernel32);
 
 var constants={}
 //console.log([wintypes.HWND, [wintypes.HINSTANCE, wintypes.LPCDLGTEMPLATEW, wintypes.HWND, wintypes.DLGPROC, wintypes.LPARAM]])
+const MB_ICONEXCLAMATION=0x00000030;
+const MB_ICONHAND = 0x00000010;
+const MB_ICONASTERISK=  0x00000040;
+constants.msgbox={
+ MB_OK : 0x00000000,
+ MB_OKCANCEL : 0x00000001,
+ MB_ABORTRETRYIGNORE : 0x00000002,
+ MB_YESNOCANCEL : 0x00000003,
+ MB_YESNO : 0x00000004,
+ MB_RETRYCANCEL : 0x00000005,
+// #if(WINVER >= 0x0500)
+ MB_CANCELTRYCONTINUE : 0x00000006,
+// #endif /* WINVER >= 0x0500 */
+ MB_ICONHAND,
+ MB_ICONQUESTION : 0x00000020,
+ MB_ICONEXCLAMATION,
+ MB_ICONASTERISK,
+// #if(WINVER >= 0x0400)
+ MB_USERICON : 0x00000080,
+ MB_ICONWARNING : MB_ICONEXCLAMATION,
+ MB_ICONERROR : MB_ICONHAND,
+// #endif /* WINVER >= 0x0400 */
+ MB_ICONINFORMATION : MB_ICONASTERISK,
+ MB_ICONSTOP : MB_ICONHAND,
+ MB_DEFBUTTON1 : 0x00000000,
+ MB_DEFBUTTON2 : 0x00000100,
+ MB_DEFBUTTON3 : 0x00000200,
+// #if(WINVER >= 0x0400)
+ MB_DEFBUTTON4 : 0x00000300,
+// #endif /* WINVER >= 0x0400 */
+ MB_APPLMODAL : 0x00000000,
+ MB_SYSTEMMODAL : 0x00001000,
+ MB_TASKMODAL : 0x00002000,
+// #if(WINVER >= 0x0400)
+ MB_HELP : 0x00004000, // Help Butto,
+// #endif /* WINVER >= 0x0400 */
+ MB_NOFOCUS : 0x00008000,
+ MB_SETFOREGROUND : 0x00010000,
+ MB_DEFAULT_DESKTOP_ONLY : 0x00020000,
+// #if(WINVER >= 0x0400)
+ MB_TOPMOST : 0x00040000,
+ MB_RIGHT : 0x00080000,
+ MB_RTLREADING : 0x00100000,
+// #endif /* WINVER >= 0x0400 */
+// #ifdef _WIN32_WINNT
+// #if(_WIN32_WINNT >= 0x0400)
+//  MB_SERVICE_NOTIFICATION : 0x00200000,
+// #else
+//  MB_SERVICE_NOTIFICATION : 0x00040000,
+// #endif
+ MB_SERVICE_NOTIFICATION_NT3X : 0x00040000,
+// #endif
+ MB_TYPEMASK : 0x0000000F,
+ MB_ICONMASK : 0x000000F0,
+ MB_DEFMASK : 0x00000F00,
+ MB_MODEMASK : 0x00003000,
+ MB_MISCMASK : 0x0000C000
+};
 constants.msg=(o=>Object.entries(o).reduce((r, [k, v]) => (r[v]=+k, r), o))({
 	0x0000:"WM_NULL",
 	0x0001:"WM_CREATE",
@@ -1613,14 +1785,49 @@ constants.styles.WS_POPUPWINDOW = constants.styles.WS_POPUP | constants.styles.W
 constants.styles.WS_TILEDWINDOW = constants.styles.WS_OVERLAPPED | constants.styles.WS_CAPTION | constants.styles.WS_SYSMENU
 	| constants.styles.WS_THICKFRAME | constants.styles.WS_MINIMIZEBOX | constants.styles.WS_MAXIMIZEBOX;
 //console.log((new wintypes.PAINTSTRUCT())["ref.buffer"].length,"this length");
+//#define MAKELANGID(p, s) ((((WORD) (s)) << 10) | (WORD) (p)) 
+//var lang={};
+function MAKELANGID(p,s){
+	return s<<10|p;
+}
 
 
-function errorHandling(fn,errcondition){
+const FORMAT_MESSAGE_ALLOCATE_BUFFER=0x100;
+const FORMAT_MESSAGE_ARGUMENT_ARRAY=0x2000;
+const FORMAT_MESSAGE_FROM_HMODULE=0x800;
+const FORMAT_MESSAGE_FROM_STRING=0x400;
+const FORMAT_MESSAGE_FROM_SYSTEM=0x1000;
+const FORMAT_MESSAGE_IGNORE_INSERTS=0x200;
+const FORMAT_MESSAGE_MAX_WIDTH_MASK=0xFF;
+//https://github.com/giwig/qtCheatMotor/blob/562560ae12b70a3bad7c9310d43fe9308287c7fa/inc/errors.py
+
+const LANG_NEUTRAL = 0x00
+const SUBLANG_NEUTRAL = 0x00
+const SUBLANG_DEFAULT = 0x01
+const LANG_ENGLISH = 0x09
+const SUBLANG_ENGLISH_US = 0x01
+function errorHandling(fn,errcondition,name){
 	return (..._)=>{var result;
 	result=fn(..._);
 	if(errcondition(result)){
 		var error=kernel32.GetLastError();
-		console.log("function errored",{result,error});
+		var errorText=Buffer.allocUnsafe(8);
+		errorText.type = ref.types.CString;
+		//console.log("errorText",errorText)
+		kernel32.FormatMessageA(// use system message tables to retrieve error text
+   FORMAT_MESSAGE_FROM_SYSTEM
+   // allocate buffer on local heap for error text
+   |FORMAT_MESSAGE_ALLOCATE_BUFFER
+   // Important! will fail otherwise, since we're not 
+   // (and CANNOT) pass insertion parameters
+   |FORMAT_MESSAGE_IGNORE_INSERTS,  
+   ref.NULL,    // unused with FORMAT_MESSAGE_FROM_SYSTEM
+   error,
+   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+   errorText,  // output 
+   0, // minimum size for output buffer
+   ref.NULL);   // arguments)
+		console.log("function errored",{name,/*arg:_,result,*/error,errorText:errorText.deref()});
 		return result;
 	}else{return 0;}
 	}	
@@ -1628,6 +1835,7 @@ function errorHandling(fn,errcondition){
 
 var events=require('node:events');
 function nonZero(i){return i!==0}
+function isZero(i){return i===0}
 var goodies={}
 goodies.MSG=new wintypes.MSG();
 goodies.defaultMessageCallback=function(message){
@@ -1663,8 +1871,8 @@ goodies.win32messageHandler.on('removeListener',(events,listener)=>{
 	
 })
 
-goodies.CreateWindowExA=errorHandling(current.CreateWindowExA,nonZero)
-goodies.RegisterClassA=errorHandling(current.RegisterClassA,nonZero)
+goodies.CreateWindowExA=errorHandling(current.CreateWindowExA,/*isZero*/nonZero,"CreateWindowExA")
+goodies.RegisterClassA=errorHandling(current.RegisterClassA,/*isZero*/nonZero,"RegisterClassA")
 goodies.getRawInputDeviceInfo=function(hDevice,uiCommand,pData=ref.NULL){
 	//if(pData==ref.NULL)
 	var strsize=ref.alloc(wintypes.UINT);
