@@ -5846,4 +5846,11 @@ return a;
 
 /*
 Realize that im a fool, and it's absolutely necessary to clone https://github.com/MicrosoftDocs/sdk-api/
+ok, now what we do is the small step of parsing the documentation
+var parameterRegex=/### -param ([_a-zA-Z][_a-zA-Z0-9]*) \[(.*?)\][\n\r\s]+Type: <b>([^<]+)<\/b>/
+var returnType=/## Returns[\n\r\s]+Type: <b>([^<]+)<\/b>/
+var getfield=/### -field ([\S]+)[\s\r\n]+Type: <b>(.*?)<\/b>/
+var nameandtype=/^# ([A-z_$][$A-z_0-9]*?) (.*)$/
+require('html-to-text');
+["Structure","callback","function","enum"]
 */
