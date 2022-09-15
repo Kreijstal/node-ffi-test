@@ -5847,10 +5847,39 @@ return a;
 /*
 Realize that im a fool, and it's absolutely necessary to clone https://github.com/MicrosoftDocs/sdk-api/
 ok, now what we do is the small step of parsing the documentation
-var parameterRegex=/### -param ([_a-zA-Z][_a-zA-Z0-9]*) \[(.*?)\][\n\r\s]+Type: <b>([^<]+)<\/b>/
-var returnType=/## Returns[\n\r\s]+Type: <b>([^<]+)<\/b>/
-var getfield=/### -field ([\S]+)[\s\r\n]+Type: <b>(.*?)<\/b>/
-var nameandtype=/^# ([A-z_$][$A-z_0-9]*?) (.*)$/
+var util=require('node:util')
+const fsP = require('node:fs').promises;
+
+async function walk(dir) {
+    let files = await fsP.readdir(dir);
+    files = await Promise.all(files.map(async file => {
+        const filePath = path.join(dir, file);
+        const stats = await fsP.stat(filePath);
+        if (stats.isDirectory()) return walk(filePath);
+        else if(stats.isFile()) return filePath;
+    }));
+
+    return files.reduce((all, folderContents) => all.concat(folderContents), []);
+}
+var x=(await walk('.')).filter(_=>/input/.test(_))
+var parameterRegex=/^### -param ([_a-zA-Z][_a-zA-Z0-9]*) \[(.*?)\][\n\r\s]+Type: <b>([^<]+)<\/b>/mg
+var returnType=/^## Returns[\n\r\s]+Type: <b>([^<]+)<\/b>/mg
+var getfield=/^### -field ([\S]+)[\s\r\n]+Type: <b>(.*?)<\/b>/mg
+var nameandtype=/^# ([A-z_$][$A-z_0-9]*?) (.*)$/m
+await Promise.all(x.slice(14,15).map(async _=>{
+var t=(await fsP.readFile(_)).toString().split('---');
+//do we need t[1] only time will tell.
+var str=t.slice(2,Infinity).join('---')
+console.log([...str.matchAll(getfield)])
+return str.match(nameandtype)?.slice(1,3)
+}))
+
+function parseFunction(str){
+
+
+}
+t.slice(2,Infinity).join('---')
+
 require('html-to-text');
-["Structure","callback","function","enum"]
+["structure","callback","function","enumeration","interface"]
 */
