@@ -5847,9 +5847,11 @@ return a;
 /*
 Realize that im a fool, and it's absolutely necessary to clone https://github.com/MicrosoftDocs/sdk-api/
 ok, now what we do is the small step of parsing the documentation
+
+```js
 var util=require('node:util')
 const fsP = require('node:fs').promises;
-
+var html2text=require('html-to-text');
 async function walk(dir) {
     let files = await fsP.readdir(dir);
     files = await Promise.all(files.map(async file => {
@@ -5861,30 +5863,73 @@ async function walk(dir) {
 
     return files.reduce((all, folderContents) => all.concat(folderContents), []);
 }
-var x=(await walk('.')).filter(_=>/input/.test(_))
-var parameterRegex=/^### -param ([_a-zA-Z][_a-zA-Z0-9]*) \[(.*?)\][\n\r\s]+Type: <b>([^<]+)<\/b>/mg
-var returnType=/^## Returns[\n\r\s]+Type: <b>([^<]+)<\/b>/mg
+var paths=await walk('.')
+var x=paths.filter(_=>/sendinput/i.test(_))
+var parameterRegex=/^### -param ([_a-zA-Z][_a-zA-Z0-9]*) \[(.*?)\][\n\r\s]+Type: (?:<b>|\*\*)([^<]+)(?:<\/b>|\*\*)/mig
+var returnType=/^## -?Returns[\n\r\s]+Type: (?:<b>|\*\*)([^<]+)(?:<\/b>|\*\*)/mi
 var getfield=/^### -field ([\S]+)[\s\r\n]+Type: (?:<b>|\*\*)(.*?)(?:<\/b>|\*\*)/mg
 var nameandtype=/^# ([A-z_$][$A-z_0-9]*?) (.*)$/m
-var parseobj={structure:function parseFunction(str,name){
-var fields=Object.fromEntries([...str.matchAll(getfield)].map(_=>_.slice(1,3)));
-return {fields,type:"structure",name};
-}};
-await Promise.all(x.slice(38,39).map(async _=>{
+function _unflatten(arr,f=_=>_) {
+  var plans = []
+  var newobj = arr.reduce((a, b) => {
+    if (b[0].length > 1) {
+      var ay = [b[0].slice(1), b[1]];
+      a[b[0][0]] == undefined ? ((a[b[0][0]] = [ay]), plans.push(b[0][0])) : a[b[0][0]].push(ay);
+    } else {
+      a[b[0][0]] = b[1]
+    };
+    return a
+  }, {});
+  plans.forEach(_ => {
+    newobj[_] =new String(f(_unflatten(newobj[_],f),_));
+	//console.log("plans forEach",newobj[_],_)
+	newobj[_].flag=true;
+  });
+  return newobj;
+}
+
+function unflattenentryarray(arr,f=_=>_) {
+  return _unflatten(arr.map(_ => {
+    var x = _[0].split('.');
+    return [x, _[1]]
+  }),f);
+}
+
+function convertFieldObjToStruct(obj,key){
+//console.log("convertFieldObjToStruct",obj)
+
+return `${/union/i.test(key)?"new Union":"StructType"}({${Object.entries(obj).map(([a,b])=>(a+":"+(b.flag?b:"wintypes."+html2text.convert(b,{selectors: [ { selector: 'a', options: { ignoreHref: true } } ]}))))}})`;
+}
+var parseobj={structure:function(str,name){
+var fields=[...str.matchAll(getfield)].map(_=>_.slice(1,3));
+
+//return {fields,type:"structure",name};
+return `wintypes.${name}=${convertFieldObjToStruct(unflattenentryarray(fields,convertFieldObjToStruct))}`
+},
+"function":function(str,name){
+
+var params=[...str.matchAll(parameterRegex)].map(_=>_.slice(1,4));
+var rtype,rtypematch=str.match(returnType);
+if(rtypematch){
+rtype=rtypematch[1];
+}else{
+console.log(name,"no return type")
+}
+return {params,rtype,type:"function",name};
+}
+};
+var test=await Promise.all(x.map(async _=>{
 var t=(await fsP.readFile(_)).toString().split('---');
 //do we need t[1] only time will tell.
-var str=t.slice(2,Infinity).join('---')
-console.log()
+var str=t.slice(2,Infinity).join('---');
 var [name,type]=str.match(nameandtype)?.slice(1,3);
-return parseobj[type](str,name);
-}))
+return parseobj?.[type]?.(str,name);
+}));
 
 
-function parseStructure(name,str){
+```
 
-}
-t.slice(2,Infinity).join('---')
 
-require('html-to-text');
-["structure","callback","function","enumeration","interface"]
+
+
 */

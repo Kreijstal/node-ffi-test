@@ -363,6 +363,7 @@ wintypes.RAWINPUTDEVICELIST=StructType({
   hDevice:wintypes.HANDLE,
   dwType:wintypes.DWORD
 })
+
 //not strictly a windows type
 wintypes.va_list = StructType({
    gp_offset : ref.types.uint,
@@ -430,6 +431,31 @@ wintypes.KBDLLHOOKSTRUCT=StructType({
     time:wintypes.DWORD,
     dwExtraInfo:wintypes.ULONG_PTR
 })
+
+wintypes.MOUSEINPUT = StructType({
+  dx: wintypes.LONG,
+  dy: wintypes.LONG,
+  mouseData: wintypes.DWORD,
+  dwFlags: wintypes.DWORD,
+  time: wintypes.DWORD,
+  dwExtraInfo: wintypes.ULONG_PTR
+})
+
+wintypes.KEYBDINPUT = StructType({
+  wVk: wintypes.WORD,
+  wScan: wintypes.WORD,
+  dwFlags: wintypes.DWORD,
+  time: wintypes.DWORD,
+  dwExtraInfo: wintypes.ULONG_PTR
+})
+
+wintypes.HARDWAREINPUT = StructType({
+  uMsg: wintypes.DWORD,
+  wParamL: wintypes.WORD,
+  wParamH: wintypes.WORD
+});
+
+wintypes.INPUT=StructType({type:wintypes.DWORD,DUMMYUNIONNAME:new Union({mi:wintypes.MOUSEINPUT,ki:wintypes.KEYBDINPUT,hi:wintypes.HARDWAREINPUT})})
 
 createWinapiPointers();
 
@@ -542,7 +568,9 @@ winterface.Kernel32={
   
   SetThreadExecutionState: [wintypes.INT, [wintypes.INT] ],
 };
-winterface.User32= {  'MessageBoxA': [ 'int', [ wintypes.HWND, wintypes.LPCSTR, wintypes.LPCSTR, wintypes.UINT ] ],
+var user32extract=[{"params":[["cInputs","in","UINT"],["pInputs","in","LPINPUT"],["cbSize","in","INT"]],"rtype":"UINT","type":"function","name":"SendInput"}]
+//console.log(user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype],b.params.map(_=>wintypes[_[2]])];return a;},{}))
+winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype],b.params.map(_=>wintypes[_[2]])];return a;},{}),  'MessageBoxA': [ 'int', [ wintypes.HWND, wintypes.LPCSTR, wintypes.LPCSTR, wintypes.UINT ] ],
 'RegisterClassA':[wintypes.ATOM,[wintypes.PWNDCLASSA]],
 	ActivateKeyboardLayout: [wintypes.HKL, [wintypes.HKL, wintypes.UINT]],
 	AddClipboardFormatListener: [wintypes.BOOL, [wintypes.HWND]],
@@ -1534,8 +1562,7 @@ constants.msg=(o=>Object.entries(o).reduce((r, [k, v]) => (r[v]=+k, r), o))({
 	0x0400:"WM_USER",
 	0x8000:"WM_APP",
 });
-var key=new Map();
-Object.entries({
+var key={
     VK_LBUTTON       : 0x01,
     VK_RBUTTON       : 0x02,
     VK_CANCEL    : 0x03,
@@ -1718,7 +1745,7 @@ Object.entries({
     VK_NONAME    : 0xFC,
     VK_PA1       : 0xFD,
     VK_OEM_CLEAR     : 0xFE
-}).forEach(([k,v])=>key.set(v,k))
+}
 constants.keys=key;
 constants.styles=({WS_BORDER : 0x00800000,
 	WS_CAPTION : 0x00C00000,
@@ -1829,7 +1856,7 @@ function errorHandling(fn,errcondition,name){
    ref.NULL);   // arguments)
 		console.log("function errored",{name,/*arg:_,result,*/error,errorText:errorText.deref()});
 		return result;
-	}else{return 0;}
+	}else{return result;}
 	}	
 }
 
@@ -1837,39 +1864,55 @@ var events=require('node:events');
 function nonZero(i){return i!==0}
 function isZero(i){return i===0}
 var goodies={}
+goodies.errorHandling=errorHandling;
 goodies.MSG=new wintypes.MSG();
-goodies.defaultMessageCallback=function(message){
+var defaultFcts={message:function(message){
 //	messages.map(_=>{//Performance cost is too great, isn't it amazing?
 //if(wintypes.msg[message.message]){
+
+	        if(constants.msg[message.message])win32messageHandler.emit(constants.msg[message.message],message.lParam,message.wParam);
 			current.TranslateMessage(message.ref());
 			current.DispatchMessageA(message.ref());
-//}
+}
 };
-goodies.win32messageHandler=new events();
-function messageFirstTime(e,listener){
-	if(e==="message"&&goodies.win32messageHandler.listenerCount('message')==0){
-		console.log("interval set")
-		goodies.win32messageHandler._msgInterval=setInterval(_=>{
+var win32messageHandler=new events();
+win32messageHandler.conditionalOnce=function(event,cb,condition){
+	function eventfn(events,listener){
+		if(condition(events,listener)){
+			cb(events,listener);
+			win32messageHandler.off(event,eventfn);
+		}
+	}
+	win32messageHandler.on(event,eventfn);
+	
+}
+win32messageHandler.uniqueOn=function(event,cb){
+	if(!eventcblist[event])eventcblist[event]=[];
+	if(!eventcblist[event].includes(cb)){
+		eventcblist[event].push(cb);
+		win32messageHandler.on(event,cb);
+		win32messageHandler.conditionalOnce('removeListener',_=>remove(eventcblist[event],cb),(ev,listener)=>ev==event&&cb==listener);
+	}	
+}
+goodies.win32messageHandler=win32messageHandler;
+
+function startintervalmsgloop(){
+	win32messageHandler._msgInterval=setInterval(_=>{
 			var i=0;
 			//Don't use GetMessage, it blocks making node unable to do anything else!
 			while(current.PeekMessageA(goodies.MSG.ref(),0,0,0,constants.styles.PM_REMOVE)){
-				goodies.win32messageHandler.emit("message",goodies.MSG);
-			}
-			
+				win32messageHandler.emit("message",goodies.MSG);
+			}		
 		},0);
-	}
-}
-goodies.win32messageHandler.on('newListener',messageFirstTime);
-goodies.win32messageHandler.on('removeListener',(events,listener)=>{
-	if(events=="message"){
-	if(goodies.win32messageHandler.listenerCount('message')==0){
-		console.log("removed interval")
-		clearInterval(goodies.win32messageHandler._msgInterval);
-	}
-	}
-	console.log('#of events removeEvent',goodies.win32messageHandler.listenerCount(events),events)
+	win32messageHandler.conditionalOnce('removeListener',(events,listener)=>{
+		console.log('interval removed')
+		clearInterval(win32messageHandler._msgInterval);	
+		win32messageHandler.conditionalOnce('newListener',startintervalmsgloop,e=>e==="message");
+},(events)=>events=="message"&&win32messageHandler.listenerCount('message')==0)
 	
-})
+}
+win32messageHandler.conditionalOnce('newListener',startintervalmsgloop,e=>e==="message");
+
 
 goodies.CreateWindowExA=errorHandling(current.CreateWindowExA,/*isZero*/nonZero,"CreateWindowExA")
 goodies.RegisterClassA=errorHandling(current.RegisterClassA,/*isZero*/nonZero,"RegisterClassA")
@@ -1892,6 +1935,39 @@ var devices=new (ArrayType(wintypes.RAWINPUTDEVICELIST))(nofdevices.readUint32LE
 gridl(devices.buffer,nofdevices,wintypes.RAWINPUTDEVICELIST.size);
 return devices;
 }
+var win32dependees={};
+win32messageHandler.addDependency=dep=>{
+	var i=win32dependees[dep]|0;
+	if(i==0){
+		win32messageHandler.on(dep,defaultFcts[dep]);
+		win32dependees[dep]=i+1;
+	}
+	
+}
+win32messageHandler.removeDependency=dep=>{
+	var i=win32dependees[dep]|0;
+	if(--i==0){
+		win32messageHandler.off(dep,defaultFcts[dep]);
+		win32dependees[dep]=0
+	}
+	
+}
+var eventcblist={};
+function remove(array, element) {
+  const index = array.indexOf(element);
+
+  if (index !== -1) {
+    array.splice(index, 1);
+  }
+}
+
+win32messageHandler.open=_=>{
+	win32messageHandler.addDependency('message')
+};
+win32messageHandler.close=_=>{
+	win32messageHandler.removeDependency('message')
+};
+
 var winapi={};
 winapi.goodies=goodies;
 winapi.constants=constants;

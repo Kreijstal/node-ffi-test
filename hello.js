@@ -26,7 +26,7 @@ var WindowProc=ffi.Callback(...wintypes.fn.WNDPROC,
 	  switch (uMsg) {
 		  case constants.msg.WM_DESTROY:
 			  console.log("excuse me?");
-			  winapi.goodies.win32messageHandler.off("message",winapi.goodies.defaultMessageCallback);
+			  winapi.goodies.win32messageHandler.close();
 			  result =0;
 			  user32.PostQuitMessage(0);
 			  break;
@@ -55,15 +55,20 @@ var WindowProc=ffi.Callback(...wintypes.fn.WNDPROC,
 
 console.log("wintypes.KBDLLHOOKSTRUCT.size",wintypes.KBDLLHOOKSTRUCT.size)
 var keyHandler=ffi.Callback(...wintypes.fn.Hookproc,(nCode,wParam,lParam)=>{
-	//console.log(`keyHandler message, 0 means key message: ${nCode} lParam "address":${ref.address(lParam)}`);
+	console.log(`keyHandler message, 0 means key message: ${nCode} lParam "address":${lParam}`);
 	if(nCode==0){
-
 		//console.log(`vkCode:${(new wintypes.KBDLLHOOKSTRUCT(ref.reinterpret(lParam,wintypes.KBDLLHOOKSTRUCT.size,0))).vkCode}`)
 		//lmao=lParam
-		var kbldstruct=(new wintypes.KBDLLHOOKSTRUCT(ref.reinterpret(lParam,wintypes.KBDLLHOOKSTRUCT.size)));
-		var vkCode=kbldstruct.vkCode
-		var key=(constants.keys.get(vkCode)||String.fromCharCode(vkCode));
-		console.log({...kbldstruct.toJSON(),key})
+		var load=Buffer.alloc(8);
+		// console.log(lParam,"lParam") 
+		load.writeBigUint64LE(BigInt(lParam));
+		load.type=ref.refType(wintypes.KBDLLHOOKSTRUCT);
+		//console.log(lParam,load)
+		//console.log("address",ref.deref(load).address());
+		var kbldstruct=load.deref().deref();
+		var vkCode=kbldstruct.vkCode;
+		var key=(constants.keys.vkCode||String.fromCharCode(vkCode));
+		console.log({...Object.fromEntries(kbldstruct.toJSON()),key})
 		//((KBDLLHOOKSTRUCT *) lParam)->vkCode
 		
 	}
@@ -79,15 +84,17 @@ const MOD_ALT=0x0001;
 const MOD_NOREPEAT=0x4000;
 const MOD_CONTROL=0x2;
 const MOD_SHIFT=0x4;
+function registerhotkey(){
 if (user32.RegisterHotKey(0,1,MOD_CONTROL | MOD_NOREPEAT,0x42)){
         console.log("Hotkey 'CTRL+b' registered, using MOD_NOREPEAT flag\n");
-}
+}}
+registerhotkey();
 //var devices=winapi.goodies.getRawInputDeviceList();
 //var devecinames=devices._toJSON().map(_=>winapi.goodies.getRawInputDeviceInfo(_.hDevice,constants.RawInputDeviceInformationCommand.RIDI_DEVICENAME))
 //console.log(devices.toJSON().map(_=>Object.fromEntries(Object.entries(_.toJSON()).map(([k,v])=>[k,(v.toJSON)?v.toJSON():v]))))
 //console.log(devices.toJSON().map(_=>_.toJSON()).map(_=>winapi.goodies.getRawInputDeviceInfo(_.hDevice,constants.RawInputDeviceInformationCommand.RIDI_DEVICENAME)))
 //execute message loop on the background
-winapi.goodies.win32messageHandler.on("message",winapi.goodies.defaultMessageCallback);
+winapi.goodies.win32messageHandler.open();
 winapi.goodies.callbacks=[keyHandler,WindowProc,proc];
 //var hookHandle= user32.SetWindowsHookExA(WH_KEYBOARD_LL, keyHandler, 0, 0);
 var wClass=new wintypes.WNDCLASSA();
@@ -156,15 +163,64 @@ console.log("INPUT should HAve BEEN unBLOCKED")
 
 
 
-function displayMessageNames(msg){
+function displayMessageNames(lParam,wParam){
 	//console.log("message..",constants.msg[msg.message],msg.message.toString(16));	
-	if(constants.msg[msg.message]=="WM_HOTKEY"){
-		//console.log(String.fromCharCode(msg.lParam>>16))
-		if(String.fromCharCode(msg.lParam>>16)=="B"){
-			//winapi.kernel32.CreateThread(null, 0, proc, ref.NULL, 0, ref.NULL);
-			user32.MessageBoxA(0, ref.allocCString("Mire al cielo"), "un programa muy interesante", 0);
+	console.log('hotkey executed')
+	const INPUT_MOUSE=0;
+	const INPUT_KEYBOARD=1;
+	const KEYEVENTF_KEYUP=2;
+	const MOUSEEVENTF_MOVE=1;
+	const HWND_BROADCAST=0xffff;
+		//user32.UnregisterHotKey(0,1);
+		//user32.PostMessageA(HWND_BROADCAST,constants.msg.WM_HOTKEY,wParam,lParam);
+		//registerhotkey();
+	if(String.fromCharCode(lParam>>16)=="B"){
+		var bufferarr=[];
+		var highorder=lParam&((1<<16)-1);
+		if(highorder&MOD_CONTROL){
+			let l=new wintypes.INPUT();
+			l.type=INPUT_KEYBOARD;
+			l.DUMMYUNIONNAME.ki.wScan=0;
+			l.DUMMYUNIONNAME.ki.time = 0;
+			l.DUMMYUNIONNAME.ki.dwExtraInfo = 0;
+			l.DUMMYUNIONNAME.ki.wVk = constants.keys.VK_CONTROL;
+			l.DUMMYUNIONNAME.ki.dwFlags = 0;
+			l.DUMMYUNIONNAME.ki.dwFlags = KEYEVENTF_KEYUP;
+			bufferarr.push(l.ref());
 		}
+		//function onkeyup(lParam,wParam){
+			
+			
+		//}
+		//winapi.goodies.win32messageHandler.on("WM_KEYUP",onkeyup);
+		var win=new wintypes.INPUT();
+		win.type=INPUT_KEYBOARD;
+		win.DUMMYUNIONNAME.ki.wScan=0;
+		win.DUMMYUNIONNAME.ki.time = 0;
+		win.DUMMYUNIONNAME.ki.dwExtraInfo = 0;
+		win.DUMMYUNIONNAME.ki.wVk = 0x42;
+		win.DUMMYUNIONNAME.ki.dwFlags = 0;
+		bufferarr.push(win.ref());
+		var mclick=new wintypes.INPUT();
+           //ZeroMemory(&buffer, sizeof(buffer));
+        mclick.type = INPUT_MOUSE;
+        mclick.DUMMYUNIONNAME.mi.dx = 0;
+        mclick.DUMMYUNIONNAME.mi.dy = 10; 
+        mclick.DUMMYUNIONNAME.mi.mouseData = 0;
+        mclick.DUMMYUNIONNAME.mi.dwFlags = MOUSEEVENTF_MOVE;
+        mclick.DUMMYUNIONNAME.mi.time = 0;
+        mclick.DUMMYUNIONNAME.mi.dwExtraInfo = 0;
+		bufferarr.push(mclick.ref());
+		//console.log(Buffer.concat(bufferarr))
+		winapi.goodies.errorHandling(user32.SendInput,_=>_!==bufferarr.length,"sendInput")(bufferarr.length, Buffer.concat(bufferarr), wintypes.INPUT.size);
+		win.DUMMYUNIONNAME.ki.dwFlags = KEYEVENTF_KEYUP;
+		user32.SendInput(1, win.ref(), wintypes.INPUT.size);
+		
+		
+		//winapi.kernel32.CreateThread(null, 0, proc, ref.NULL, 0, ref.NULL);
+		//user32.MessageBoxA(0, ref.allocCString("Mire al cielo"), "un programa muy interesante", 0);
 	}
+	
 }
-winapi.goodies.win32messageHandler.on("message",displayMessageNames);
+winapi.goodies.win32messageHandler.on("WM_HOTKEY",displayMessageNames);
 //winapi.goodies.win32messageHandler.off("message",winapi.goodies.defaultMessageCallback);
