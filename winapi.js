@@ -1746,7 +1746,8 @@ var key={
     VK_PA1       : 0xFD,
     VK_OEM_CLEAR     : 0xFE
 }
-constants.keys=key;
+
+constants.keys={...key,...Object.fromEntries(Object.entries(key).map(([k,v])=>[v,k]))};
 constants.styles=({WS_BORDER : 0x00800000,
 	WS_CAPTION : 0x00C00000,
 	WS_CHILD : 0x40000000,

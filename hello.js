@@ -67,7 +67,7 @@ var keyHandler=ffi.Callback(...wintypes.fn.Hookproc,(nCode,wParam,lParam)=>{
 		//console.log("address",ref.deref(load).address());
 		var kbldstruct=load.deref().deref();
 		var vkCode=kbldstruct.vkCode;
-		var key=(constants.keys.vkCode||String.fromCharCode(vkCode));
+		var key=(constants.keys[vkCode]||String.fromCharCode(vkCode));
 		console.log({...Object.fromEntries(kbldstruct.toJSON()),key})
 		//((KBDLLHOOKSTRUCT *) lParam)->vkCode
 		
@@ -162,7 +162,7 @@ console.log("INPUT should HAve BEEN unBLOCKED")
 });*/
 
 
-
+winapi.goodies.win32messageHandler.on("WM_KEYUP",(l,w)=>{console.log("WM_KEYUP",l,w,constants.keys[w]||String.fromCharCode(w))});
 function displayMessageNames(lParam,wParam){
 	//console.log("message..",constants.msg[msg.message],msg.message.toString(16));	
 	console.log('hotkey executed')
@@ -192,7 +192,7 @@ function displayMessageNames(lParam,wParam){
 			
 			
 		//}
-		//winapi.goodies.win32messageHandler.on("WM_KEYUP",onkeyup);
+		//winapi.goodies.win32messageHandler.conditionalOnce("WM_KEYUP",onkeyup,(lParam,wParam)=>);
 		var win=new wintypes.INPUT();
 		win.type=INPUT_KEYBOARD;
 		win.DUMMYUNIONNAME.ki.wScan=0;
