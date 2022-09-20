@@ -15,6 +15,9 @@ var WindowProc=ffi.Callback(...wintypes.fn.WNDPROC,
 	  //console.log('WndProc callback',winapi.msg[uMsg],uMsg.toString(16),"wParam:",wParam,"lParam:",ref.address(lParam));
 	  let result = 0
 	  switch (uMsg) {
+		  case constants.msg.WM_INITMENUPOPUP:
+			  //InitMenu(wParam);
+			  break;
 		  case constants.msg.WM_DESTROY:
 			  console.log("Did you just click the X button on me?");
 			  result =0;
@@ -165,9 +168,9 @@ function displayMessageNames(lParam,wParam){
 		//user32.UnregisterHotKey(0,1);
 		//user32.PostMessageA(HWND_BROADCAST,constants.msg.WM_HOTKEY,wParam,lParam);
 		//registerhotkey();
-	if(String.fromCharCode(lParam>>16)=="B"){
+	if(String.fromCharCode(constants.macros.LOWORD(lParam))=="B"){
 		var bufferarr=[];
-		var highorder=lParam&((1<<16)-1);
+		var highorder=constants.macros.HIWORD(lParam);
 		if(highorder&MOD_CONTROL){
 			let l=new wintypes.INPUT();
 			l.type=INPUT_KEYBOARD;
@@ -184,6 +187,17 @@ function displayMessageNames(lParam,wParam){
 			
 		//}
 		//winapi.goodies.win32messageHandler.conditionalOnce("WM_KEYUP",onkeyup,(lParam,wParam)=>);
+		user32.OpenClipboard(0);
+		var clipcount=user32.CountClipboardFormats();
+		var clipformats=[];
+		var intervalue=0;
+		while(clipcount--){
+			intervalue=user32.EnumClipboardFormats(intervalue)
+			clipformats.push(intervalue)
+		}
+		console.log(clipformats)
+		user32.EmptyClipboard();
+		user32.CloseClipboard();
 		var win=new wintypes.INPUT();
 		win.type=INPUT_KEYBOARD;
 		win.DUMMYUNIONNAME.ki.wScan=0;

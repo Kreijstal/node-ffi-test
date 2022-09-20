@@ -465,6 +465,8 @@ wintypes.HARDWAREINPUT = StructType({
 });
 
 wintypes.INPUT=StructType({type:wintypes.DWORD,DUMMYUNIONNAME:new Union({mi:wintypes.MOUSEINPUT,ki:wintypes.KEYBDINPUT,hi:wintypes.HARDWAREINPUT})})
+wintypes.NMHDR=StructType({hwndFrom:wintypes.HWND,idFrom:wintypes.UINT_PTR,code:wintypes.UINT})
+wintypes.CLIPBOARDFORMAT=StructType({nmhdr:wintypes.NMHDR,cf:wintypes.DWORD})
 
 createWinapiPointers();
 
@@ -577,12 +579,35 @@ winterface.Kernel32={
   
   SetThreadExecutionState: [wintypes.INT, [wintypes.INT] ],
 };
-var user32extract=[{"params":[["cInputs","in","UINT"],["pInputs","in","LPINPUT"],["cbSize","in","INT"]],"rtype":"UINT","type":"function","name":"SendInput"}]
+var user32extract=[
+{"params":[["cInputs","in","UINT"],["pInputs","in","LPINPUT"],["cbSize","in","INT"]],"rtype":"UINT","type":"function","name":"SendInput"},
+{"params":[["hwnd","in","HWND"]],"rtype":"BOOL","type":"function","name":"AddClipboardFormatListener"},
+{"params":[["hWndRemove","in","HWND"],["hWndNewNext","in","HWND"]],"rtype":"BOOL","type":"function","name":"ChangeClipboardChain"},
+{"params":[],"rtype":"BOOL","type":"function","name":"CloseClipboard"},
+{"params":[],"rtype":"INT","type":"function","name":"CountClipboardFormats"},
+{"params":[],"rtype":"BOOL","type":"function","name":"EmptyClipboard"},
+{"params":[["format","in","UINT"]],"rtype":"UINT","type":"function","name":"EnumClipboardFormats"},
+{"params":[["uFormat","in","UINT"]],"rtype":"HANDLE","type":"function","name":"GetClipboardData"},
+{"params":[["format","in","UINT"],["lpszFormatName","out","LPSTR"],["cchMaxCount","in","INT"]],"rtype":"INT","type":"function","name":"GetClipboardFormatNameA"},
+{"params":[["format","in","UINT"],["lpszFormatName","out","LPWSTR"],["cchMaxCount","in","INT"]],"rtype":"INT","type":"function","name":"GetClipboardFormatNameW"},
+{"params":[],"rtype":"HWND","type":"function","name":"GetClipboardOwner"},
+{"params":[],"rtype":"DWORD","type":"function","name":"GetClipboardSequenceNumber"},
+{"params":[],"rtype":"HWND","type":"function","name":"GetClipboardViewer"},
+{"params":[],"rtype":"HWND","type":"function","name":"GetOpenClipboardWindow"},
+{"params":[["paFormatPriorityList","in","PUINT"],["cFormats","in","INT"]],"rtype":"INT","type":"function","name":"GetPriorityClipboardFormat"},
+{"params":[["lpuiFormats","out","PUINT"],["cFormats","in","UINT"],["pcFormatsOut","out","PUINT"]],"rtype":"BOOL","type":"function","name":"GetUpdatedClipboardFormats"},
+{"params":[["format","in","UINT"]],"rtype":"BOOL","type":"function","name":"IsClipboardFormatAvailable"},
+{"params":[["hWndNewOwner","in, optional","HWND"]],"rtype":"BOOL","type":"function","name":"OpenClipboard"},
+{"params":[["lpszFormat","in","LPCSTR"]],"rtype":"UINT","type":"function","name":"RegisterClipboardFormatA"},
+{"params":[["lpszFormat","in","LPCWSTR"]],"rtype":"UINT","type":"function","name":"RegisterClipboardFormatW"},
+{"params":[["hwnd","in","HWND"]],"rtype":"BOOL","type":"function","name":"RemoveClipboardFormatListener"},
+{"params":[["uFormat","in","UINT"],["hMem","in, optional","HANDLE"]],"rtype":"HANDLE","type":"function","name":"SetClipboardData"},
+{"params":[["hWndNewViewer","in","HWND"]],"rtype":"HWND","type":"function","name":"SetClipboardViewer"}]
 //console.log(user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype],b.params.map(_=>wintypes[_[2]])];return a;},{}))
 winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype],b.params.map(_=>wintypes[_[2]])];return a;},{}),  'MessageBoxA': [ 'int', [ wintypes.HWND, wintypes.LPCSTR, wintypes.LPCSTR, wintypes.UINT ] ],
 'RegisterClassA':[wintypes.ATOM,[wintypes.PWNDCLASSA]],
 	ActivateKeyboardLayout: [wintypes.HKL, [wintypes.HKL, wintypes.UINT]],
-	AddClipboardFormatListener: [wintypes.BOOL, [wintypes.HWND]],
+	//dAddClipboardFormatListener: [wintypes.BOOL, [wintypes.HWND]],
 	AdjustWindowRect: [wintypes.BOOL, [wintypes.LPRECT, wintypes.DWORD, wintypes.BOOL]],
 	AdjustWindowRectEx: [wintypes.BOOL, [wintypes.LPRECT, wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]],
 	AdjustWindowRectExForDpi: [wintypes.BOOL, [wintypes.LPRECT, wintypes.DWORD, wintypes.BOOL, wintypes.DWORD, wintypes.UINT]],
@@ -609,7 +634,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	CallWindowProcA: [wintypes.LRESULT, [wintypes.WNDPROC, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]],
 	CallWindowProcW: [wintypes.LRESULT, [wintypes.WNDPROC, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]],
 	CascadeWindows: [wintypes.WORD, [wintypes.HWND, wintypes.UINT, wintypes.RECT, wintypes.UINT, wintypes.HWND]],
-	ChangeClipboardChain: [wintypes.BOOL, [wintypes.HWND, wintypes.HWND]],
+	//dChangeClipboardChain: [wintypes.BOOL, [wintypes.HWND, wintypes.HWND]],
 	ChangeDisplaySettingsA: [wintypes.LONG, [wintypes.DEVMODEA, wintypes.DWORD]],
 	ChangeDisplaySettingsExA: [wintypes.LONG, [wintypes.LPCSTR, wintypes.DEVMODEA, wintypes.HWND, wintypes.DWORD, wintypes.LPVOID]],
 	ChangeDisplaySettingsExW: [wintypes.LONG, [wintypes.LPCWSTR, wintypes.DEVMODEW, wintypes.HWND, wintypes.DWORD, wintypes.LPVOID]],
@@ -642,7 +667,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	ChildWindowFromPointEx: [wintypes.HWND, [wintypes.HWND, wintypes.POINT, wintypes.UINT]],
 	ClientToScreen: [wintypes.BOOL, [wintypes.HWND, wintypes.LPPOINT]],
 	ClipCursor: [wintypes.BOOL, [wintypes.RECT]],
-	CloseClipboard: [wintypes.BOOL, []],
+	//dCloseClipboard: [wintypes.BOOL, []],
 	CloseDesktop: [wintypes.BOOL, [wintypes.HDESK]],
 	CloseGestureInfoHandle: [wintypes.BOOL, [wintypes.HGESTUREINFO]],
 	CloseTouchInputHandle: [wintypes.BOOL, [wintypes.HTOUCHINPUT]],
@@ -741,7 +766,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	DrawTextExA: [wintypes.INT, [wintypes.HDC, wintypes.LPSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT, wintypes.LPDRAWTEXTPARAMS]],
 	DrawTextExW: [wintypes.INT, [wintypes.HDC, wintypes.LPWSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT, wintypes.LPDRAWTEXTPARAMS]],*/
 	DrawTextW: [wintypes.INT, [wintypes.HDC, wintypes.LPCWSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT]],
-	EmptyClipboard: [wintypes.BOOL, []],
+	//dEmptyClipboard: [wintypes.BOOL, []],
 	EnableMenuItem: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.UINT]],
 	EnableMouseInPointer: [wintypes.BOOL, [wintypes.BOOL]],
 	EnableNonClientDpiScaling: [wintypes.BOOL, [wintypes.HWND]],
@@ -753,7 +778,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	EndPaint: [wintypes.BOOL, [wintypes.HWND, wintypes.PPAINTSTRUCT]],
 	EndTask: [wintypes.BOOL, [wintypes.HWND, wintypes.BOOL, wintypes.BOOL]],/*
 	EnumChildWindows: [wintypes.BOOL, [wintypes.HWND, wintypes.WNDENUMPROC, wintypes.LPARAM]],
-	EnumClipboardFormats: [wintypes.UINT, [wintypes.UINT]],
+	//dEnumClipboardFormats: [wintypes.UINT, [wintypes.UINT]],
 	EnumDesktopsA: [wintypes.BOOL, [wintypes.HWINSTA, wintypes.DESKTOPENUMPROCA, wintypes.LPARAM]],
 	EnumDesktopsW: [wintypes.BOOL, [wintypes.HWINSTA, wintypes.DESKTOPENUMPROCW, wintypes.LPARAM]],
 	EnumDesktopWindows: [wintypes.BOOL, [wintypes.HDESK, wintypes.WNDENUMPROC, wintypes.LPARAM]],
@@ -810,12 +835,12 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	GetClassNameW: [wintypes.INT, [wintypes.HWND, wintypes.LPWSTR, wintypes.INT]],
 	GetClassWord: [wintypes.WORD, [wintypes.HWND, wintypes.INT]],
 	GetClientRect: [wintypes.BOOL, [wintypes.HWND, wintypes.LPRECT]],
-	GetClipboardData: [wintypes.HANDLE, [wintypes.UINT]],
-	GetClipboardFormatNameA: [wintypes.INT, [wintypes.UINT, wintypes.LPSTR, wintypes.INT]],
-	GetClipboardFormatNameW: [wintypes.INT, [wintypes.UINT, wintypes.LPWSTR, wintypes.INT]],
-	GetClipboardOwner: [wintypes.HWND, []],
-	GetClipboardSequenceNumber: [wintypes.DWORD, []],
-	GetClipboardViewer: [wintypes.HWND, []],
+	//dGetClipboardData: [wintypes.HANDLE, [wintypes.UINT]],
+	//dGetClipboardFormatNameA: [wintypes.INT, [wintypes.UINT, wintypes.LPSTR, wintypes.INT]],
+	//dGetClipboardFormatNameW: [wintypes.INT, [wintypes.UINT, wintypes.LPWSTR, wintypes.INT]],
+	//dGetClipboardOwner: [wintypes.HWND, []],
+	//dGetClipboardSequenceNumber: [wintypes.DWORD, []],
+	//dGetClipboardViewer: [wintypes.HWND, []],
 	GetClipCursor: [wintypes.BOOL, [wintypes.LPRECT]],/*
 	GetComboBoxInfo: [wintypes.BOOL, [wintypes.HWND, wintypes.PCOMBOBOXINFO]],
 	GetCurrentInputMessageSource: [wintypes.BOOL, [wintypes.INPUT_MESSAGE_SOURCE]],
@@ -891,7 +916,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	GetNextDlgGroupItem: [wintypes.HWND, [wintypes.HWND, wintypes.HWND, wintypes.BOOL]],
 	GetNextDlgTabItem: [wintypes.HWND, [wintypes.HWND, wintypes.HWND, wintypes.BOOL]],
 	GetNextWindow: [wintypes.VOID, []],
-	GetOpenClipboardWindow: [wintypes.HWND, []],
+	//dGetOpenClipboardWindow: [wintypes.HWND, []],
 	GetParent: [wintypes.HWND, [wintypes.HWND]],
 	GetPhysicalCursorPos: [wintypes.BOOL, [wintypes.LPPOINT]],
 	GetPointerCursorId: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32]],
@@ -914,7 +939,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	GetPointerTouchInfo: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_TOUCH_INFO]],
 	GetPointerTouchInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_TOUCH_INFO]],
 	GetPointerType: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_INPUT_TYPE]],*/
-	GetPriorityClipboardFormat: [wintypes.INT, [wintypes.UINT, wintypes.INT]],
+	//dGetPriorityClipboardFormat: [wintypes.INT, [wintypes.UINT, wintypes.INT]],
 	GetProcessDefaultLayout: [wintypes.BOOL, [wintypes.DWORD]],
 	GetProcessWindowStation: [wintypes.HWINSTA, []],
 	GetPropA: [wintypes.HANDLE, [wintypes.HWND, wintypes.LPCSTR]],
@@ -948,7 +973,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	GetTopWindow: [wintypes.HWND, [wintypes.HWND]],
 	GetTouchInputInfo: [wintypes.BOOL, [wintypes.HTOUCHINPUT, wintypes.UINT, wintypes.PTOUCHINPUT, wintypes.INT]],
 	GetUnpredictedMessagePos: [wintypes.DWORD, []],
-	GetUpdatedClipboardFormats: [wintypes.BOOL, [wintypes.PUINT, wintypes.UINT, wintypes.PUINT]],
+	//dGetUpdatedClipboardFormats: [wintypes.BOOL, [wintypes.PUINT, wintypes.UINT, wintypes.PUINT]],
 	GetUpdateRect: [wintypes.BOOL, [wintypes.HWND, wintypes.LPRECT, wintypes.BOOL]],
 	GetUpdateRgn: [wintypes.INT, [wintypes.HWND, wintypes.HRGN, wintypes.BOOL]],
 	GetUserObjectInformationA: [wintypes.BOOL, [wintypes.HANDLE, wintypes.INT, wintypes.PVOID, wintypes.DWORD, wintypes.LPDWORD]],
@@ -1004,7 +1029,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	IsCharUpperA: [wintypes.BOOL, [wintypes.CHAR]],
 	IsCharUpperW: [wintypes.BOOL, [wintypes.WCHAR]],
 	IsChild: [wintypes.BOOL, [wintypes.HWND, wintypes.HWND]],
-	IsClipboardFormatAvailable: [wintypes.BOOL, [wintypes.UINT]],
+	//dIsClipboardFormatAvailable: [wintypes.BOOL, [wintypes.UINT]],
 	IsDialogMessageA: [wintypes.BOOL, [wintypes.HWND, wintypes.LPMSG]],
 	IsDialogMessageW: [wintypes.BOOL, [wintypes.HWND, wintypes.LPMSG]],
 	IsDlgButtonChecked: [wintypes.UINT, [wintypes.HWND, wintypes.INT]],
@@ -1085,7 +1110,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	OemToCharBuffW: [wintypes.BOOL, [wintypes.LPCSTR, wintypes.LPWSTR, wintypes.DWORD]],
 	OemToCharW: [wintypes.BOOL, [wintypes.LPCSTR, wintypes.LPWSTR]],
 	OffsetRect: [wintypes.BOOL, [wintypes.LPRECT, wintypes.INT, wintypes.INT]],
-	OpenClipboard: [wintypes.BOOL, [wintypes.HWND]],
+	//dOpenClipboard: [wintypes.BOOL, [wintypes.HWND]],
 	OpenDesktopA: [wintypes.HDESK, [wintypes.LPCSTR, wintypes.DWORD, wintypes.BOOL, wintypes.ACCESS_MASK]],
 	OpenDesktopW: [wintypes.HDESK, [wintypes.LPCWSTR, wintypes.DWORD, wintypes.BOOL, wintypes.ACCESS_MASK]],
 	OpenIcon: [wintypes.BOOL, [wintypes.HWND]],
@@ -1114,8 +1139,8 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	RegisterClassExA: [wintypes.ATOM, [wintypes.PWNDCLASSEXA]],
 	RegisterClassExW: [wintypes.ATOM, [wintypes.PWNDCLASSEXW]],
 	//	RegisterClassW: [wintypes.ATOM, [wintypes.WNDCLASSW]],
-	RegisterClipboardFormatA: [wintypes.UINT, [wintypes.LPCSTR]],
-	RegisterClipboardFormatW: [wintypes.UINT, [wintypes.LPCWSTR]],
+	//dRegisterClipboardFormatA: [wintypes.UINT, [wintypes.LPCSTR]],
+	//dRegisterClipboardFormatW: [wintypes.UINT, [wintypes.LPCWSTR]],
 	/*	RegisterDeviceNotificationA: [wintypes.HDEVNOTIFY, [wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD]],
 	RegisterDeviceNotificationW: [wintypes.HDEVNOTIFY, [wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD]],*/
 	RegisterHotKey: [wintypes.BOOL, [wintypes.HWND, wintypes.INT, wintypes.UINT, wintypes.UINT]],
@@ -1132,7 +1157,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	RegisterWindowMessageW: [wintypes.UINT, [wintypes.LPCWSTR]],
 	ReleaseCapture: [wintypes.BOOL, []],
 	ReleaseDC: [wintypes.INT, [wintypes.HWND, wintypes.HDC]],
-	RemoveClipboardFormatListener: [wintypes.BOOL, [wintypes.HWND]],
+	//dRemoveClipboardFormatListener: [wintypes.BOOL, [wintypes.HWND]],
 	RemoveMenu: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.UINT]],
 	RemovePropA: [wintypes.HANDLE, [wintypes.HWND, wintypes.LPCSTR]],
 	RemovePropW: [wintypes.HANDLE, [wintypes.HWND, wintypes.LPCWSTR]],
@@ -1162,8 +1187,8 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	SetClassLongPtrW: [wintypes.ULONG_PTR, [wintypes.HWND, wintypes.INT, wintypes.LONG_PTR]],
 	SetClassLongW: [wintypes.DWORD, [wintypes.HWND, wintypes.INT, wintypes.LONG]],
 	SetClassWord: [wintypes.WORD, [wintypes.HWND, wintypes.INT, wintypes.WORD]],
-	SetClipboardData: [wintypes.HANDLE, [wintypes.UINT, wintypes.HANDLE]],
-	SetClipboardViewer: [wintypes.HWND, [wintypes.HWND]],
+	//dSetClipboardData: [wintypes.HANDLE, [wintypes.UINT, wintypes.HANDLE]],
+	//dSetClipboardViewer: [wintypes.HWND, [wintypes.HWND]],
 	SetCoalescableTimer: [wintypes.UINT_PTR, [wintypes.HWND, wintypes.UINT_PTR, wintypes.UINT, wintypes.TIMERPROC, wintypes.ULONG]],
 	SetCursor: [wintypes.HCURSOR, [wintypes.HCURSOR]],
 	SetCursorPos: [wintypes.BOOL, [wintypes.INT, wintypes.INT]],
@@ -1824,10 +1849,25 @@ constants.styles.WS_TILEDWINDOW = constants.styles.WS_OVERLAPPED | constants.sty
 //console.log((new wintypes.PAINTSTRUCT())["ref.buffer"].length,"this length");
 //#define MAKELANGID(p, s) ((((WORD) (s)) << 10) | (WORD) (p)) 
 //var lang={};
+//macro functions
 function MAKELANGID(p,s){
 	return s<<10|p;
 }
-
+//we assume correct input
+function LOWORD(i){
+	return i>>16;
+}
+function HIWORD(i){
+	return i&((1<<16)-1);
+}
+function HIBYTE(i){
+	return i&((1<<8)-1);
+}
+function LOBYTE(i){
+	return i>>8;
+}
+var macros={MAKELANGID,LOWORD,HIWORD};
+constants.macros=macros;
 
 const FORMAT_MESSAGE_ALLOCATE_BUFFER=0x100;
 const FORMAT_MESSAGE_ARGUMENT_ARRAY=0x2000;

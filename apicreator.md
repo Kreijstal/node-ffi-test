@@ -1,7 +1,14 @@
-/*
+# What is this all about?
+
+This is a guide that explains how to parse windows api to get functions faster
+
+# Get a list of all Win32 Functions and their DLLs..
+
 We go to this beautiful website and try scraping some info
 https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ee391633(v=vs.85)
 
+
+```js
 //paste the following
 function tableToJson(table) { 
     var data = [];
@@ -25,8 +32,9 @@ return a;
 })("/html/body/div[2]/div/section/div/div[1]/main/div[3]/div[2]/table")[0]).map(_=>_.reverse()))))
  
 //to get
+```
 
-*/
+```json
 
 {
    "ADsBuildEnumerator":"activeds.dll",
@@ -5843,10 +5851,14 @@ return a;
    "CreateXmlWriterOutputWithEncodingName":"xmllite.dll"
 }
 
+```
 
-/*
-Realize that im a fool, and it's absolutely necessary to clone https://github.com/MicrosoftDocs/sdk-api/
-ok, now what we do is the small step of parsing the documentation
+# Parse the documentation
+Realize that im a fool, and it's absolutely necessary to
+```sh 
+git clone https://github.com/MicrosoftDocs/sdk-api/
+```
+ok, now what we do is the small step of parsing the documentation, open node and paste this
 
 ```js
 var util=require('node:util')
@@ -5864,7 +5876,6 @@ async function walk(dir) {
     return files.reduce((all, folderContents) => all.concat(folderContents), []);
 }
 var paths=await walk('.')
-var x=paths.filter(_=>/sendinput/i.test(_))
 var parameterRegex=/^### -param ([_a-zA-Z][_a-zA-Z0-9]*) \[(.*?)\][\n\r\s]+Type: (?:<b>|\*\*)([^<]+)(?:<\/b>|\*\*)/mig
 var returnType=/^## -?Returns[\n\r\s]+Type: (?:<b>|\*\*)([^<]+)(?:<\/b>|\*\*)/mi
 var getfield=/^### -field ([\S]+)[\s\r\n]+Type: (?:<b>|\*\*)(.*?)(?:<\/b>|\*\*)/mg
@@ -5918,13 +5929,22 @@ console.log(name,"no return type")
 return {params,rtype,type:"function",name};
 }
 };
-var test=await Promise.all(x.map(async _=>{
+var extractdata=async _=>{
 var t=(await fsP.readFile(_)).toString().split('---');
 //do we need t[1] only time will tell.
-var str=t.slice(2,Infinity).join('---');
+var str=t.slice(2).join('---');
+var match=str.match(nameandtype)?.slice(1,3);
+if(!Array.isArray(match)){console.log(`regex didn't return any type matches! url:${_}`);
+return null;}
 var [name,type]=str.match(nameandtype)?.slice(1,3);
 return parseobj?.[type]?.(str,name);
-}));
+};
+```
+
+Ok now change the x variable to parse whatever you want to extract
+```js
+var x=paths.filter(_=>/clipboard/i.test(_))
+var test2=await Promise.all(paths.filter(_=>/nmhdr/i.test(_)).map(extractdata));
 
 
 ```
@@ -5932,4 +5952,3 @@ return parseobj?.[type]?.(str,name);
 
 
 
-*/
