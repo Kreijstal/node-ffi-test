@@ -3,7 +3,16 @@ var ref = require('ref-napi');
 var ArrayB =require('ref-array-di')(ref);
 var Struct = require('ref-struct-di')(ref);
 var Union = require('ref-union-di')(ref);
-
+//Should this be optional or something?
+Buffer.prototype._toJSON=Buffer.prototype.toJSON
+Buffer.prototype.toJSON=function toJSON(){
+var obj=this._toJSON();
+var size=this?.type?.size;
+var indirection=this.type.indirection;
+var type=this?.type?.name;
+var address=this.address();
+return {...obj,size,indirection,type,address};
+}
 
 function StructType(){
 	function toJSONrec(){
@@ -2009,12 +2018,10 @@ win32messageHandler.close=_=>{
 	win32messageHandler.removeDependency('message')
 };
 
-var winapi={};
-winapi.goodies=goodies;
-winapi.constants=constants;
+var winapi={ffi,goodies,constants,gdi32,kernel32,ref,Union,Struct:StructType,Array:ArrayType};
+
+
 winapi.interfaces=winterface;
 winapi.types=wintypes
 winapi.user32=current
-winapi.gdi32=gdi32
-winapi.kernel32=kernel32;
 module.exports=({winapi,user32:current,gdi32,kernel32,constants,wintypes});

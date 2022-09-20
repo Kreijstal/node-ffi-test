@@ -8,15 +8,6 @@ var util=require('util')
 //doesn't work because it calls it from another thread, and it's even slower.
 //var user32async=Object.fromEntries(Object.entries(user32).map(([k,v])=>[k,util.promisify(v.async)]))
 //var gdi32async=Object.fromEntries(Object.entries(gdi32).map(([k,v])=>[k,util.promisify(v.async)]))
-Buffer.prototype._toJSON=Buffer.prototype.toJSON
-Buffer.prototype.toJSON=function toJSON(){
-var obj=this._toJSON();
-var size=this?.type?.size;
-var indirection=this.type.indirection;
-var type=this?.type?.name;
-var address=this.address();
-return {...obj,size,indirection,type,address};
-}
 
 
 var WindowProc=ffi.Callback(...wintypes.fn.WNDPROC,
@@ -25,10 +16,10 @@ var WindowProc=ffi.Callback(...wintypes.fn.WNDPROC,
 	  let result = 0
 	  switch (uMsg) {
 		  case constants.msg.WM_DESTROY:
-			  console.log("excuse me?");
-			  winapi.goodies.win32messageHandler.close();
+			  console.log("Did you just click the X button on me?");
 			  result =0;
 			  user32.PostQuitMessage(0);
+			  winapi.goodies.win32messageHandler.close();
 			  break;
 		  case constants.msg.WM_PAINT:
 		  const DT_SINGLELINE=0x20;
@@ -212,13 +203,11 @@ function displayMessageNames(lParam,wParam){
         mclick.DUMMYUNIONNAME.mi.dwExtraInfo = 0;
 		bufferarr.push(mclick.ref());
 		//console.log(Buffer.concat(bufferarr))
-		console.log("before sendinput")
+		//console.log("before sendinput")
 		winapi.goodies.errorHandling(user32.SendInput,_=>_!==bufferarr.length,"sendInput")(bufferarr.length, Buffer.concat(bufferarr), wintypes.INPUT.size);
-		console.log("after sendinput")
+		//console.log("after sendinput")
 		win.DUMMYUNIONNAME.ki.dwFlags = KEYEVENTF_KEYUP;
 		user32.SendInput(1, win.ref(), wintypes.INPUT.size);
-		
-		
 		//winapi.kernel32.CreateThread(null, 0, proc, ref.NULL, 0, ref.NULL);
 		//user32.MessageBoxA(0, ref.allocCString("Mire al cielo"), "un programa muy interesante", 0);
 	}
