@@ -18,7 +18,7 @@ var address=this.address();
 return {...obj,size,indirection,type,address};
 }
 
-const  WH_KEYBOARD_LL=13
+
 var WindowProc=ffi.Callback(...wintypes.fn.WNDPROC,
 	(hwnd, uMsg, wParam, lParam) => {
 	  //console.log('WndProc callback',winapi.msg[uMsg],uMsg.toString(16),"wParam:",wParam,"lParam:",ref.address(lParam));
@@ -54,7 +54,7 @@ var WindowProc=ffi.Callback(...wintypes.fn.WNDPROC,
 
 
 console.log("wintypes.KBDLLHOOKSTRUCT.size",wintypes.KBDLLHOOKSTRUCT.size)
-var keyHandler=ffi.Callback(...wintypes.fn.Hookproc,(nCode,wParam,lParam)=>{
+/*var keyHandler=ffi.Callback(...wintypes.fn.Hookproc,(nCode,wParam,lParam)=>{
 	console.log(`keyHandler message, 0 means key message: ${nCode} lParam "address":${lParam}`);
 	if(nCode==0){
 		//console.log(`vkCode:${(new wintypes.KBDLLHOOKSTRUCT(ref.reinterpret(lParam,wintypes.KBDLLHOOKSTRUCT.size,0))).vkCode}`)
@@ -76,7 +76,7 @@ var keyHandler=ffi.Callback(...wintypes.fn.Hookproc,(nCode,wParam,lParam)=>{
 	//if(key=="T"){return 1;}
 	return user32.CallNextHookEx(hookHandle, nCode, 
             wParam, lParam);
-})
+})*/
 var proc = ffi.Callback(...wintypes.fn.ThreadProc, () => {
 	user32.MessageBoxA(0, "example", null, constants.msgbox.MB_OK | constants.msgbox.MB_ICONEXCLAMATION);
 });
@@ -95,7 +95,7 @@ registerhotkey();
 //console.log(devices.toJSON().map(_=>_.toJSON()).map(_=>winapi.goodies.getRawInputDeviceInfo(_.hDevice,constants.RawInputDeviceInformationCommand.RIDI_DEVICENAME)))
 //execute message loop on the background
 winapi.goodies.win32messageHandler.open();
-winapi.goodies.callbacks=[keyHandler,WindowProc,proc];
+winapi.goodies.callbacks=[WindowProc,proc];
 //var hookHandle= user32.SetWindowsHookExA(WH_KEYBOARD_LL, keyHandler, 0, 0);
 var wClass=new wintypes.WNDCLASSA();
 //wClass.cbSize=wClass.ref().byteLength;
@@ -198,7 +198,7 @@ function displayMessageNames(lParam,wParam){
 		win.DUMMYUNIONNAME.ki.wScan=0;
 		win.DUMMYUNIONNAME.ki.time = 0;
 		win.DUMMYUNIONNAME.ki.dwExtraInfo = 0;
-		win.DUMMYUNIONNAME.ki.wVk = 0x42;
+		win.DUMMYUNIONNAME.ki.wVk = 0x41;
 		win.DUMMYUNIONNAME.ki.dwFlags = 0;
 		bufferarr.push(win.ref());
 		var mclick=new wintypes.INPUT();
@@ -212,7 +212,9 @@ function displayMessageNames(lParam,wParam){
         mclick.DUMMYUNIONNAME.mi.dwExtraInfo = 0;
 		bufferarr.push(mclick.ref());
 		//console.log(Buffer.concat(bufferarr))
+		console.log("before sendinput")
 		winapi.goodies.errorHandling(user32.SendInput,_=>_!==bufferarr.length,"sendInput")(bufferarr.length, Buffer.concat(bufferarr), wintypes.INPUT.size);
+		console.log("after sendinput")
 		win.DUMMYUNIONNAME.ki.dwFlags = KEYEVENTF_KEYUP;
 		user32.SendInput(1, win.ref(), wintypes.INPUT.size);
 		
@@ -220,7 +222,8 @@ function displayMessageNames(lParam,wParam){
 		//winapi.kernel32.CreateThread(null, 0, proc, ref.NULL, 0, ref.NULL);
 		//user32.MessageBoxA(0, ref.allocCString("Mire al cielo"), "un programa muy interesante", 0);
 	}
-	
 }
 winapi.goodies.win32messageHandler.on("WM_HOTKEY",displayMessageNames);
+//winapi.goodies.win32messageHandler.on("WH_KEYBOARD_LL",_=>console.log(Object.fromEntries(Object.entries(_).map(([k,v])=>{if(k=="vkCode")return [k,constants.keys[v]||String.fromCharCode(v)]; else return [k,v]}))));
+//setTimeout(_=>winapi.goodies.win32messageHandler.off("WH_KEYBOARD_LL",console.log),10000)
 //winapi.goodies.win32messageHandler.off("message",winapi.goodies.defaultMessageCallback);

@@ -1877,13 +1877,17 @@ var defaultFcts={message:function(message){
 }
 };
 var win32messageHandler=new events();
-win32messageHandler.conditionalOnce=function(event,cb,condition){
+win32messageHandler.conditionalOnce=function(event,cb,condition
+//,addEmitter=_=>_,removeEmitter=_=>_
+){
 	function eventfn(events,listener){
 		if(condition(events,listener)){
 			cb(events,listener);
+			//removeEmitter();
 			win32messageHandler.off(event,eventfn);
 		}
 	}
+	//addEmitter()
 	win32messageHandler.on(event,eventfn);
 	
 }
@@ -1897,7 +1901,7 @@ win32messageHandler.uniqueOn=function(event,cb){
 }
 goodies.win32messageHandler=win32messageHandler;
 
-function startintervalmsgloop(){
+/*function startintervalmsgloop(){
 	win32messageHandler._msgInterval=setInterval(_=>{
 			var i=0;
 			//Don't use GetMessage, it blocks making node unable to do anything else!
@@ -1912,9 +1916,45 @@ function startintervalmsgloop(){
 },(events)=>events=="message"&&win32messageHandler.listenerCount('message')==0)
 	
 }
-win32messageHandler.conditionalOnce('newListener',startintervalmsgloop,e=>e==="message");
-
-
+win32messageHandler.conditionalOnce('newListener',startintervalmsgloop,e=>e==="message");*/
+function oneTimeListen(event,starter,remover){
+	var c=e=>e===event;
+	function beginEventLoop(){
+	var x=starter();
+	win32messageHandler.conditionalOnce('removeListener',(events,listener)=>{
+		if(remover(x))
+		win32messageHandler.conditionalOnce('newListener',beginEventLoop,c);
+},(events)=>events==event&&win32messageHandler.listenerCount(event)==0);
+	
+}
+	win32messageHandler.conditionalOnce('newListener',beginEventLoop,c);
+}
+oneTimeListen("message",_=>setInterval(_=>{
+			var i=0;
+			//Don't use GetMessage, it blocks making node unable to do anything else!
+			while(current.PeekMessageA(goodies.MSG.ref(),0,0,0,constants.styles.PM_REMOVE)){
+				win32messageHandler.emit("message",goodies.MSG);
+			}		
+		},0),_=>{clearInterval(_);return true});
+var keyHandler_LL=ffi.Callback(...wintypes.fn.Hookproc,(nCode,wParam,lParam)=>{
+	//console.log(nCode,"ncode")
+		var load=Buffer.alloc(8);
+		load.writeBigUint64LE(BigInt(lParam));
+		load.type=ref.refType(wintypes.KBDLLHOOKSTRUCT);
+		var kbldstruct=Object.fromEntries(load.deref().deref().toJSON());
+		var obj={nCode,wParam,...kbldstruct};
+		win32messageHandler.emit("WH_KEYBOARD_LL",obj);
+		if(!obj.defaultPrevent)return current.CallNextHookEx(goodies._WH_KEYBOARD_LL_storage[0], nCode, wParam, lParam);
+});
+		
+oneTimeListen("WH_KEYBOARD_LL",_=>{
+	const  WH_KEYBOARD_LL=13;
+	var stopgarbageColection=[];//Yes this is as ugly as it looks.
+	goodies._WH_KEYBOARD_LL_storage=stopgarbageColection
+	var callback=keyHandler_LL;
+	stopgarbageColection.push(current.SetWindowsHookExA(WH_KEYBOARD_LL, keyHandler_LL, 0, 0));
+	stopgarbageColection.push(callback);
+return stopgarbageColection;},([HHandle,cb])=>{current.UnhookWindowsHookEx(HHandle);goodies._WH_KEYBOARD_LL_storage=[];return true;})
 goodies.CreateWindowExA=errorHandling(current.CreateWindowExA,/*isZero*/nonZero,"CreateWindowExA")
 goodies.RegisterClassA=errorHandling(current.RegisterClassA,/*isZero*/nonZero,"RegisterClassA")
 goodies.getRawInputDeviceInfo=function(hDevice,uiCommand,pData=ref.NULL){
