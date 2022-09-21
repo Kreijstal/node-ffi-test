@@ -195,7 +195,9 @@ function displayMessageNames(lParam,wParam){
 			intervalue=user32.EnumClipboardFormats(intervalue)
 			clipformats.push(intervalue)
 		}
+		
 		console.log(clipformats)
+		console.log(clipformats.map(_=>constants.clipboardFormats[_]))
 		user32.EmptyClipboard();
 		user32.CloseClipboard();
 		var win=new wintypes.INPUT();
