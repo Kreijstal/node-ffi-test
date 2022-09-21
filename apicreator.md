@@ -5929,8 +5929,8 @@ console.log(name,"no return type")
 return {params,rtype,type:"function",name};
 }
 };
-var extractdata=async _=>{
-var t=(await fsP.readFile(_)).toString().split('---');
+function extractDataString(str){
+var t=str.split('---');
 //do we need t[1] only time will tell.
 var str=t.slice(2).join('---');
 var match=str.match(nameandtype)?.slice(1,3);
@@ -5938,13 +5938,16 @@ if(!Array.isArray(match)){console.log(`regex didn't return any type matches! url
 return null;}
 var [name,type]=str.match(nameandtype)?.slice(1,3);
 return parseobj?.[type]?.(str,name);
+}
+var extractdata=async _=>{
+return extractDataString((await fsP.readFile(_)).toString())
 };
 ```
 
 Ok now change the x variable to parse whatever you want to extract
 ```js
-var x=paths.filter(_=>/clipboard/i.test(_))
-var test2=await Promise.all(paths.filter(_=>/nmhdr/i.test(_)).map(extractdata));
+var x=paths.filter(_=>/globalalloc/i.test(_))
+var test=await Promise.all(paths.filter(_=>/GUITHREADINFO/i.test(_)).map(extractdata));
 
 
 ```

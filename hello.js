@@ -3,8 +3,9 @@ var ref = require('ref-napi');
 var ArrayType =require('ref-array-di')(ref);
 var StructType = require('ref-struct-di')(ref);
 var Union = require('ref-union-di')(ref);
-var {winapi,user32,gdi32,constants,wintypes} = require('./winapi.js')
+var {winapi,user32,gdi32,constants,wintypes,kernel32} = require('./winapi.js')
 var util=require('util')
+
 //doesn't work because it calls it from another thread, and it's even slower.
 //var user32async=Object.fromEntries(Object.entries(user32).map(([k,v])=>[k,util.promisify(v.async)]))
 //var gdi32async=Object.fromEntries(Object.entries(gdi32).map(([k,v])=>[k,util.promisify(v.async)]))
@@ -15,6 +16,18 @@ var WindowProc=ffi.Callback(...wintypes.fn.WNDPROC,
 	  //console.log('WndProc callback',winapi.msg[uMsg],uMsg.toString(16),"wParam:",wParam,"lParam:",ref.address(lParam));
 	  let result = 0
 	  switch (uMsg) {
+		  case constants.msg.WM_CLIPBOARDUPDATE:
+		       console.log("Clipboard has changed mf");
+			   if (!user32.IsClipboardFormatAvailable(constants.clipboardFormats.CF_TEXT)||!user32.OpenClipboard(hwnd)) 
+            break; 
+			   var hglb = user32.GetClipboardData(constants.clipboardFormats.CF_TEXT)//,wintypes.HGLOBAL);	   
+			   var lptstr = kernel32.GlobalLock(hglb.address()); 
+			   var size=kernel32.GlobalSize(hglb.address());
+			   console.log("buffer size:",size)
+			   console.log(ref.reinterpret(lptstr,size).toString());
+			   kernel32.GlobalUnlock(hglb.address())
+			   user32.CloseClipboard();
+			   break;
 		  case constants.msg.WM_INITMENUPOPUP:
 			  //InitMenu(wParam);
 			  break;
@@ -98,8 +111,9 @@ wClass.lpfnWndProc=WindowProc;
 wClass.lpszClassName=sclass;
 if(winapi.goodies.RegisterClassA(wClass.ref())){
 	var dStyle= constants.styles.WS_CAPTION|constants.styles.WS_SYSMENU;
-	var hwnd=winapi.goodies.CreateWindowExA(0,sclass,Buffer.from("Esta vaina no sirve!\0",'utf-8'),constants.styles.WS_OVERLAPPEDWINDOW,constants.styles.CW_USEDEFAULT,constants.styles.CW_USEDEFAULT,600,400,0,0,0,ref.NULL);
+	var hwnd=winapi.goodies.CreateWindowExA(0,sclass,Buffer.from("Esta vaina no sirve!\0",'utf-8'),constants.styles.WS_OVERLAPPEDWINDOW,0,0,600,400,0,0,0,ref.NULL);
 	if(hwnd){
+		user32.AddClipboardFormatListener(hwnd);
 		user32.ShowWindow(hwnd,1);
 		//	user32.UpdateWindow(hwnd);
 	}else{
@@ -228,6 +242,7 @@ function displayMessageNames(lParam,wParam){
 		//user32.MessageBoxA(0, ref.allocCString("Mire al cielo"), "un programa muy interesante", 0);
 	}
 }
+winapi.goodies.win32messageHandler.on("WM_CLIPBOARDUPDATE",_=>{console.log("wow this executed?")});
 winapi.goodies.win32messageHandler.on("WM_HOTKEY",displayMessageNames);
 //winapi.goodies.win32messageHandler.on("WH_KEYBOARD_LL",_=>console.log(Object.fromEntries(Object.entries(_).map(([k,v])=>{if(k=="vkCode")return [k,constants.keys[v]||String.fromCharCode(v)]; else return [k,v]}))));
 //setTimeout(_=>winapi.goodies.win32messageHandler.off("WH_KEYBOARD_LL",console.log),10000)

@@ -467,7 +467,7 @@ wintypes.HARDWAREINPUT = StructType({
 wintypes.INPUT=StructType({type:wintypes.DWORD,DUMMYUNIONNAME:new Union({mi:wintypes.MOUSEINPUT,ki:wintypes.KEYBDINPUT,hi:wintypes.HARDWAREINPUT})})
 wintypes.NMHDR=StructType({hwndFrom:wintypes.HWND,idFrom:wintypes.UINT_PTR,code:wintypes.UINT})
 wintypes.CLIPBOARDFORMAT=StructType({nmhdr:wintypes.NMHDR,cf:wintypes.DWORD})
-
+wintypes.GUITHREADINFO=StructType({cbSize:wintypes.DWORD,flags:wintypes.DWORD,hwndActive:wintypes.HWND,hwndFocus:wintypes.HWND,hwndCapture:wintypes.HWND,hwndMenuOwner:wintypes.HWND,hwndMoveSize:wintypes.HWND,hwndCaret:wintypes.HWND,rcCaret:wintypes.RECT})
 createWinapiPointers();
 
 wintypes.fn=fn;
@@ -477,7 +477,13 @@ winterface.gdi32= {
 };
 //https://github.com/deskbtm/win32-ffi/blob/master/lib/cpp/kernel32/process_threads_api_fns.ts
 //https://github.com/waitingsong/node-win32-api/blob/HEAD/packages/win32-api/src/lib/kernel32/api.ts
-winterface.Kernel32={
+var kernel32extract=[
+{"params":[["hMem","in","HGLOBAL"]],"rtype":"LPVOID","type":"function","name":"GlobalLock"},
+{"params":[["hMem","in","HGLOBAL"]],"rtype":"BOOL","type":"function","name":"GlobalUnlock"},
+{"params":[["uFlags","in","UINT"],["dwBytes","in","SIZE_T"]],"rtype":"HGLOBAL","type":"function","name":"GlobalAlloc"},
+{"params":[["hMem","in","HGLOBAL"]],"rtype":"SIZE_T","type":"function","name":"GlobalSize"}
+]
+winterface.Kernel32={...kernel32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype],b.params.map(_=>wintypes[_[2]])];return a;},{}),
   FormatMessageA: [wintypes.DWORD,  [wintypes.DWORD, wintypes.LPCVOID, wintypes.DWORD, wintypes.DWORD, wintypes.LPSTR, wintypes.DWORD, wintypes.va_list] ],
   FormatMessageW: [wintypes.DWORD,  [wintypes.DWORD, wintypes.LPCVOID, wintypes.DWORD, wintypes.DWORD, wintypes.LPWSTR, wintypes.DWORD, wintypes.PVOID]  ],
   FreeConsole: [wintypes.BOOL, [] ],
@@ -602,7 +608,8 @@ var user32extract=[
 {"params":[["lpszFormat","in","LPCWSTR"]],"rtype":"UINT","type":"function","name":"RegisterClipboardFormatW"},
 {"params":[["hwnd","in","HWND"]],"rtype":"BOOL","type":"function","name":"RemoveClipboardFormatListener"},
 {"params":[["uFormat","in","UINT"],["hMem","in, optional","HANDLE"]],"rtype":"HANDLE","type":"function","name":"SetClipboardData"},
-{"params":[["hWndNewViewer","in","HWND"]],"rtype":"HWND","type":"function","name":"SetClipboardViewer"}]
+{"params":[["hWndNewViewer","in","HWND"]],"rtype":"HWND","type":"function","name":"SetClipboardViewer"},
+{"params":[["idThread","in","DWORD"],["pgui","in, out","LPGUITHREADINFO"]],"rtype":"BOOL","type":"function","name":"GetGUIThreadInfo"}]
 //console.log(user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype],b.params.map(_=>wintypes[_[2]])];return a;},{}))
 winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype],b.params.map(_=>wintypes[_[2]])];return a;},{}),  'MessageBoxA': [ 'int', [ wintypes.HWND, wintypes.LPCSTR, wintypes.LPCSTR, wintypes.UINT ] ],
 'RegisterClassA':[wintypes.ATOM,[wintypes.PWNDCLASSA]],
@@ -871,7 +878,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	GetGestureExtraArgs: [wintypes.BOOL, [wintypes.HGESTUREINFO, wintypes.UINT, wintypes.PBYTE]],
 	GetGestureInfo: [wintypes.BOOL, [wintypes.HGESTUREINFO, wintypes.PGESTUREINFO]],
 	GetGuiResources: [wintypes.DWORD, [wintypes.HANDLE, wintypes.DWORD]],
-	GetGUIThreadInfo: [wintypes.BOOL, [wintypes.DWORD, wintypes.PGUITHREADINFO]],
+	//dGetGUIThreadInfo: [wintypes.BOOL, [wintypes.DWORD, wintypes.PGUITHREADINFO]],
 	GetIconInfo: [wintypes.BOOL, [wintypes.HICON, wintypes.PICONINFO]],
 	GetIconInfoExA: [wintypes.BOOL, [wintypes.HICON, wintypes.PICONINFOEXA]],
 	GetIconInfoExW: [wintypes.BOOL, [wintypes.HICON, wintypes.PICONINFOEXW]],
@@ -1618,6 +1625,7 @@ constants.msg=(o=>Object.entries(o).reduce((r, [k, v]) => (r[v]=+k, r), o))({
 	0x0318:"WM_PRINTCLIENT",
 	0x0319:"WM_APPCOMMAND",
 	0x031A:"WM_THEMECHANGED",
+	0x031D:"WM_CLIPBOARDUPDATE",
 	0x0358:"WM_HANDHELDFIRST",
 	0x035F:"WM_HANDHELDLAST",
 	0x0360:"WM_AFXFIRST",
@@ -2088,6 +2096,36 @@ win32messageHandler.open=_=>{
 win32messageHandler.close=_=>{
 	win32messageHandler.removeDependency('message')
 };
+function createWindow(params){
+	var wClass=new wintypes.WNDCLASSA();
+//wClass.cbSize=wClass.ref().byteLength;
+var sclass=params.className;//Buffer.from("Okay let's change this\0",'ucs2');
+wClass.lpfnWndProc=WindowProc;
+wClass.lpszClassName=sclass;
+if(winapi.goodies.RegisterClassA(wClass.ref())){
+	//var dStyle= constants.styles.WS_CAPTION|constants.styles.WS_SYSMENU;
+	var hwnd=winapi.goodies.CreateWindowExA(
+	params.ExStyle,
+	sclass,
+	params.title,
+	params.Style,
+	params.x,
+	params.y,
+	params.nWidth,
+	params.nHeight,
+	params.hInstance,0,ref.NULL);
+
+	//params.hWndParent);
+	if(hwnd){
+		user32.ShowWindow(hwnd,1);
+		//	user32.UpdateWindow(hwnd);
+	}else{
+		console.error("CreateWindow failed to create window..");
+	}
+}else{
+	console.error("Register Class Failed User32/RegisterClassEx")
+}	
+}
 
 var winapi={ffi,goodies,constants,gdi32,kernel32,ref,Union,Struct:StructType,Array:ArrayType};
 
