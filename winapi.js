@@ -1330,7 +1330,18 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	WinHelpW: [wintypes.BOOL, [wintypes.HWND, wintypes.LPCWSTR, wintypes.UINT, wintypes.ULONG_PTR]]
 }
 //Don't use ffi.Library, use DynamicLibrary instead!
-var current = ffi.Library("User32.dll", winterface.User32);
+var user32dll=ffi.DynamicLibrary("User32.dll", ffi.DynamicLibrary.FLAGS.RTLD_LAZY);
+var current={};
+Object.entries(winterface.User32).forEach(([fname,[rtype,args]])=>{
+	try{
+		current[fname]=ffi.ForeignFunction(current.get(fname),rtype,args);
+	}
+	catch(x){
+		console.log(x,fname+" couldn't be loaded :(")
+	}
+	
+})
+//var current = ffi.Library("User32.dll", winterface.User32);
 var gdi32 = ffi.Library("gdi32.dll", winterface.gdi32);
 var kernel32 = ffi.Library("kernel32.dll", winterface.Kernel32);
 
