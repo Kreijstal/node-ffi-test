@@ -1329,7 +1329,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	WinHelpA: [wintypes.BOOL, [wintypes.HWND, wintypes.LPCSTR, wintypes.UINT, wintypes.ULONG_PTR]],
 	WinHelpW: [wintypes.BOOL, [wintypes.HWND, wintypes.LPCWSTR, wintypes.UINT, wintypes.ULONG_PTR]]
 }
-
+//Don't use ffi.Library, use DynamicLibrary instead!
 var current = ffi.Library("User32.dll", winterface.User32);
 var gdi32 = ffi.Library("gdi32.dll", winterface.gdi32);
 var kernel32 = ffi.Library("kernel32.dll", winterface.Kernel32);
