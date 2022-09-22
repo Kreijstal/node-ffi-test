@@ -1334,7 +1334,7 @@ var user32dll=ffi.DynamicLibrary("User32.dll", ffi.DynamicLibrary.FLAGS.RTLD_LAZ
 var current={};
 Object.entries(winterface.User32).forEach(([fname,[rtype,args]])=>{
 	try{
-		current[fname]=ffi.ForeignFunction(current.get(fname),rtype,args);
+		current[fname]=ffi.ForeignFunction(user32dll.get(fname),rtype,args);
 	}
 	catch(x){
 		console.log(x,fname+" couldn't be loaded :(")
