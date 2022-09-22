@@ -5926,7 +5926,7 @@ rtype=rtypematch[1];
 }else{
 console.log(name,"no return type")
 }
-return {params,rtype,type:"function",name};
+return JSON.stringify({params,rtype,type:"function",name});
 }
 };
 function extractDataString(str){
@@ -5947,7 +5947,8 @@ return extractDataString((await fsP.readFile(_)).toString())
 Ok now change the x variable to parse whatever you want to extract
 ```js
 var x=paths.filter(_=>/globalalloc/i.test(_))
-var test=await Promise.all(paths.filter(_=>/GUITHREADINFO/i.test(_)).map(extractdata));
+var test;
+test=await Promise.all(paths.filter(_=>/DESKTOPENUMPROC/i.test(_)).map(extractdata));
 
 
 ```

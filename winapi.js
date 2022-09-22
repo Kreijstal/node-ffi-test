@@ -3,6 +3,9 @@ var ref = require('ref-napi');
 var ArrayB =require('ref-array-di')(ref);
 var Struct = require('ref-struct-di')(ref);
 var Union = require('ref-union-di')(ref);
+//Ok this is a mega long file where definitions and helper functions are all in one file together, we can split this file later after most of the bulkwork has been completed
+
+
 //Should this be optional or something?
 Buffer.prototype._toJSON=Buffer.prototype.toJSON
 Buffer.prototype.toJSON=function toJSON(){
@@ -388,10 +391,12 @@ fn.DLGPROC = [wintypes.INT_PTR,[wintypes.HWND,wintypes.UINT,wintypes.WPARAM,wint
 fn.Hookproc = [wintypes.LRESULT,[ref.types.int,wintypes.WPARAM,wintypes.LPARAM]];
 fn.ThreadProc = [wintypes.DWORD, [wintypes.LPVOID]];
 fn.EnumWindowsProc = [wintypes.BOOL,[wintypes.HWND,wintypes.LPARAM]];
+fn.Sendasyncproc = [wintypes.VOID, [wintypes.HWND,wintypes.UINT,wintypes.ULONG_PTR,wintypes.LRESULT]];
 Object.keys(fn).forEach(_=>{wintypes[_]=wintypes.PVOID});
 wintypes.THREAD_START_ROUTINE=wintypes.ThreadProc;
 wintypes.WNDENUMPROC=wintypes.ThreadProc;
 wintypes.HOOKPROC=wintypes.Hookproc;
+wintypes.SENDASYNCPROC=wintypes.Sendasyncproc;
 wintypes.WNDCLASSA = StructType({
 	style: wintypes.UINT,
 	lpfnWndProc: wintypes.WNDPROC,
@@ -609,7 +614,9 @@ var user32extract=[
 {"params":[["hwnd","in","HWND"]],"rtype":"BOOL","type":"function","name":"RemoveClipboardFormatListener"},
 {"params":[["uFormat","in","UINT"],["hMem","in, optional","HANDLE"]],"rtype":"HANDLE","type":"function","name":"SetClipboardData"},
 {"params":[["hWndNewViewer","in","HWND"]],"rtype":"HWND","type":"function","name":"SetClipboardViewer"},
-{"params":[["idThread","in","DWORD"],["pgui","in, out","LPGUITHREADINFO"]],"rtype":"BOOL","type":"function","name":"GetGUIThreadInfo"}]
+{"params":[["idThread","in","DWORD"],["pgui","in, out","LPGUITHREADINFO"]],"rtype":"BOOL","type":"function","name":"GetGUIThreadInfo"},
+{"params":[["hWnd","in","HWND"],["Msg","in","UINT"],["wParam","in","WPARAM"],["lParam","in","LPARAM"],["lpResultCallBack","in","SENDASYNCPROC"],["dwData","in","ULONG_PTR"]],"rtype":"BOOL","type":"function","name":"SendMessageCallbackA"},
+{"params":[["hWnd","in","HWND"],["Msg","in","UINT"],["wParam","in","WPARAM"],["lParam","in","LPARAM"],["lpResultCallBack","in","SENDASYNCPROC"],["dwData","in","ULONG_PTR"]],"rtype":"BOOL","type":"function","name":"SendMessageCallbackW"}]
 //console.log(user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype],b.params.map(_=>wintypes[_[2]])];return a;},{}))
 winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype],b.params.map(_=>wintypes[_[2]])];return a;},{}),  'MessageBoxA': [ 'int', [ wintypes.HWND, wintypes.LPCSTR, wintypes.LPCSTR, wintypes.UINT ] ],
 'RegisterClassA':[wintypes.ATOM,[wintypes.PWNDCLASSA]],
@@ -1175,11 +1182,11 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	ScrollWindowEx: [wintypes.INT, [wintypes.HWND, wintypes.INT, wintypes.INT, wintypes.RECT, wintypes.RECT, wintypes.HRGN, wintypes.LPRECT, wintypes.UINT]],
 	SendDlgItemMessageA: [wintypes.LRESULT, [wintypes.HWND, wintypes.INT, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]],
 	SendDlgItemMessageW: [wintypes.LRESULT, [wintypes.HWND, wintypes.INT, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]],
-	SendInput: [wintypes.UINT, [wintypes.UINT, wintypes.LPINPUT, wintypes.INT]],
+	//dSendInput: [wintypes.UINT, [wintypes.UINT, wintypes.LPINPUT, wintypes.INT]],
 	SendMessage: [wintypes.LRESULT, [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]],
 	SendMessageA: [wintypes.LRESULT, [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]],
-	SendMessageCallbackA: [wintypes.BOOL, [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM, wintypes.SENDASYNCPROC, wintypes.ULONG_PTR]],
-	SendMessageCallbackW: [wintypes.BOOL, [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM, wintypes.SENDASYNCPROC, wintypes.ULONG_PTR]],
+	//dSendMessageCallbackA: [wintypes.BOOL, [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM, wintypes.SENDASYNCPROC, wintypes.ULONG_PTR]],
+	//dSendMessageCallbackW: [wintypes.BOOL, [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM, wintypes.SENDASYNCPROC, wintypes.ULONG_PTR]],
 	SendMessageTimeoutA: [wintypes.LRESULT, [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM, wintypes.UINT, wintypes.UINT, wintypes.PDWORD_PTR]],
 	SendMessageTimeoutW: [wintypes.LRESULT, [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM, wintypes.UINT, wintypes.UINT, wintypes.PDWORD_PTR]],
 	SendMessageW: [wintypes.LRESULT, [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]],
@@ -1922,11 +1929,8 @@ const SUBLANG_NEUTRAL = 0x00
 const SUBLANG_DEFAULT = 0x01
 const LANG_ENGLISH = 0x09
 const SUBLANG_ENGLISH_US = 0x01
-function errorHandling(fn,errcondition,name){
-	return (..._)=>{var result;
-	result=fn(..._);
-	if(errcondition(result)){
-		var error=kernel32.GetLastError();
+function Win32Exception(){
+	var error=kernel32.GetLastError();
 		var errorText=Buffer.allocUnsafe(8);
 		errorText.type = ref.types.CString;
 		//console.log("errorText",errorText)
@@ -1943,7 +1947,15 @@ function errorHandling(fn,errcondition,name){
    errorText,  // output 
    0, // minimum size for output buffer
    ref.NULL);   // arguments)
-		console.log("function errored",{name,/*arg:_,result,*/error,errorText:errorText.deref()});
+   return errorText.deref();
+	
+}
+function errorHandling(fn,errcondition,name){
+	return (..._)=>{var result;
+	result=fn(..._);
+	if(errcondition(result)){
+		var errorText=Win32Exception();
+		console.log("function errored",{name,/*arg:_,result,*/errorText});
 		return result;
 	}else{return result;}
 	}	
@@ -2096,7 +2108,23 @@ win32messageHandler.open=_=>{
 win32messageHandler.close=_=>{
 	win32messageHandler.removeDependency('message')
 };
-function createWindow(params){
+goodies.createWindow=function createWindow(params){
+	var window=new events();
+	var WindowProc=ffi.Callback(...wintypes.fn.WNDPROC,
+	(hwnd, uMsg, wParam, lParam) => {
+	  //console.log('WndProc callback',winapi.msg[uMsg],uMsg.toString(16),"wParam:",wParam,"lParam:",ref.address(lParam));
+	  let result = 0;
+	  var obj={hwnd,wParam,lParam};
+	  window.emit(constants.msg[uMsg]||uMsg,obj);
+	  if(obj.preventDefaulted){
+		  result=obj.result;
+	  }else
+	  result = current.DefWindowProcA(hwnd, uMsg, wParam, lParam);
+	  //console.info('Sending LRESULT: ' + result) 
+	  return result
+  },
+);
+    window.WindowProc=WindowProc;
 	var wClass=new wintypes.WNDCLASSA();
 //wClass.cbSize=wClass.ref().byteLength;
 var sclass=params.className;//Buffer.from("Okay let's change this\0",'ucs2');
@@ -2104,20 +2132,40 @@ wClass.lpfnWndProc=WindowProc;
 wClass.lpszClassName=sclass;
 if(winapi.goodies.RegisterClassA(wClass.ref())){
 	//var dStyle= constants.styles.WS_CAPTION|constants.styles.WS_SYSMENU;
+	console.log("createwindowexa arguments",
+	params.ExStyle,
+	sclass,
+	params.title,
+	params.Style,
+	params.X,
+	params.Y,
+	params.nWidth,
+	params.nHeight,
+	params.hWndParent,
+	params.hMenu,
+	params.hInstance,
+	params.lParam);
 	var hwnd=winapi.goodies.CreateWindowExA(
 	params.ExStyle,
 	sclass,
 	params.title,
 	params.Style,
-	params.x,
-	params.y,
+	params.X,
+	params.Y,
 	params.nWidth,
 	params.nHeight,
-	params.hInstance,0,ref.NULL);
+	params.hWndParent,
+	params.hMenu,
+	params.hInstance,
+	params.lParam);
+	window.hwnd=hwnd;
 
 	//params.hWndParent);
 	if(hwnd){
-		user32.ShowWindow(hwnd,1);
+		current.ShowWindow(hwnd,1);
+		win32messageHandler.addDependency('message');//open message loop
+		window.on("WM_DESTROY",_=>win32messageHandler.removeDependency('message'));//close message loop
+		
 		//	user32.UpdateWindow(hwnd);
 	}else{
 		console.error("CreateWindow failed to create window..");
@@ -2125,8 +2173,26 @@ if(winapi.goodies.RegisterClassA(wClass.ref())){
 }else{
 	console.error("Register Class Failed User32/RegisterClassEx")
 }	
+return window;
 }
 
+goodies.getFocusedHandle=function GetFocusedHandle(){
+	//from https://stackoverflow.com/questions/12102000/send-win-api-paste-cmd-from-background-c-sharp-app
+	var info = new wintypes.GUITHREADINFO();
+    info.cbSize = wintypes.GUITHREADINFO.size;
+    if (!current.GetGUIThreadInfo(0, info.ref()))
+        throw new Win32Exception();
+    return info.hwndFocus;	
+}
+var messagecallback = ffi.Callback(...wintypes.fn.Sendasyncproc, (hWnd,uMsg,dwData,lresult) => {
+  messagecallback.relateddata[dwData-1](hWnd,uMsg,lresult);
+  messagecallback.relateddata.splice(dwData-1,1);
+});
+messagecallback.relateddata=[];
+goodies.SendMessageCallbackA=function SendMessageCallbackA(hWnd,uMsg,wParam,lParam,cb){
+	var s=messagecallback.relateddata.push(cb);
+	return current.SendMessageCallbackA(hWnd,uMsg,wParam,lParam,messagecallback,s);
+}
 var winapi={ffi,goodies,constants,gdi32,kernel32,ref,Union,Struct:StructType,Array:ArrayType};
 
 
