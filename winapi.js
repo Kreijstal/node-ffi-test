@@ -1341,6 +1341,18 @@ Object.entries(winterface.User32).forEach(([fname,[rtype,args]])=>{
 	}
 	
 })
+function loadFunctions(objtosave,pathofdll,functions){
+	var dllmem=ffi.DynamicLibrary(pathofdll, ffi.DynamicLibrary.FLAGS.RTLD_LAZY);
+	Object.entries(functions).forEach(([fname,[rtype,args]])=>{
+	try{
+		objtosave[fname]=ffi.ForeignFunction(dllmem.get(fname),rtype,args);
+	}
+	catch(x){
+		console.log(x,fname+" couldn't be loaded :(")
+	}
+	
+})
+}
 //var current = ffi.Library("User32.dll", winterface.User32);
 var gdi32 = ffi.Library("gdi32.dll", winterface.gdi32);
 var kernel32 = ffi.Library("kernel32.dll", winterface.Kernel32);
