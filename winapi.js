@@ -58,53 +58,51 @@ ref.types.WCString.set = function set (buf, offset, val) {
 };
 // Define Winapi types according to 
 //  https://msdn.microsoft.com/en-us/library/windows/desktop/aa383751%28v=vs.85%29.aspx
-var wintypes = {};
-
+//var wintypes = {};
+function longeSTring(a, b) {
+        return a.length > b.length ? a : b;
+    }
+//There are so many types that it's better to lazily dynamically generate them because otherwise the list would be just too long.
 //LP,P,NP,SP, this is overkill but why did microsoft just made so many names for the same thing?
 //we have to execute this many times because structs contain pointers already and they're referenced as pointers as well
-var pointers=["LPCSTR","PCZPCWSTR","PZPWSTR","PCZPWSTR"];
-function createWinapiPointers(overkill=false){
-	Object.keys(wintypes).forEach(_=>{if(!pointers.includes(_)){
-		pointers.push(_);
-		((a,l,f)=>l.split('').reduce(f,a))(["LP","P","NP","SP"],overkill?"CUNZZ":"C",(ar,l)=>ar.map(a=>a+l).concat(ar)).map(a=>a+_).forEach(t=>{
-			wintypes[t]=ref.refType(wintypes[_]);
-			pointers.push(t);
-		})
-	}})
-}
-
-
+var wintypes=new Proxy({},{
+  get: function(target, name) {
+   var arr,lname;
+    if (name in target) return  target[name] ;
+	else if(name.toLowerCase() in ref.types)
+		return target[name]=ref.types[name.toLowerCase()]
+    else if((arr=name.match(/^[LNS]?P(C?(U?(N?(Z?(Z?(.*)|.*)|.*)|.*)|.*)|.*)/)?.slice(1).filter(_=>this.has(target,_)))?.length|0>0){
+		if((lname=arr.reduce(longeSTring))=="STR"){
+			return target[name]=ref.types.CString;
+		}else
+    return target[name]=ref.refType(this.get(target,lname));
+	}
+    else if(name[0]=="H") return target[name]=ref.types.uint64;
+  },
+has: function(target, name) {
+    if (name in target||
+	name.toLowerCase() in ref.types||
+	name.match(/^[LNS]?P(C?(U?(N?(Z?(Z?(.*)|.*)|.*)|.*)|.*)|.*)/)?.slice(1).filter(_=>this.has(target,_))?.length|0>0||
+	name[0]=="H"||name=="STR") return true;
+    else return false;
+  }
+})
 wintypes.WCHAR=wintypes.WSTR= ref.types.wchar_t;
-wintypes.VOID= ref.types.void;
-createWinapiPointers(true);
-wintypes.PCZPCWSTR=wintypes.PZPWSTR=wintypes.PCZPWSTR=ref.refType(wintypes.PWSTR);
+//wintypes.VOID= ref.types.void;
 wintypes.WCH=wintypes.WSTR;
 wintypes.NWPSTR=wintypes.PWCHAR;
-
-
-wintypes.HANDLE = ref.refType(ref.types.void);//Some handles aren't meant to be read.
-//hardcoding 64bit for now
-wintypes.HANDLE2 = ref.types.uint64;//Others are, I'm not sure how to implement this in a way that pleases everyone.
-//Handles
-wintypes.INT= ref.types.int;
-wintypes.FLOAT= ref.types.float;
-wintypes.ULONG= ref.types.ulong;
-wintypes.LONG = ref.types.long;
-wintypes.CHAR = ref.types.char;
-createWinapiPointers();
-
-wintypes.LPSTR= wintypes.LPCSTR = ref.types.CString;
-wintypes.UINT = ref.types.uint;
-wintypes.SHORT = ref.types.short;
-wintypes.USHORT = ref.types.ushort;
-wintypes.LONG_PTR = ref.types.int64;//64bit
-wintypes.ULONG_PTR = ref.types.uint64;//64bit
+//wintypes.INT= ref.types.int;
+//wintypes.FLOAT= ref.types.float;
+//wintypes.ULONG= ref.types.ulong;
+//wintypes.LONG = ref.types.long;
+//wintypes.CHAR = ref.types.char;
+//wintypes.UINT = ref.types.uint;
+//wintypes.SHORT = ref.types.short;
+//wintypes.USHORT = ref.types.ushort;
+wintypes.SSIZE_T= wintypes.INT_PTR=wintypes.LONG_PTR = ref.types.int64;//64bit
+wintypes.SIZE_T=wintypes.UINT_PTR=wintypes.ULONG_PTR = ref.types.uint64;//64bit
 wintypes.LRESULT = wintypes.LONG_PTR;
 wintypes.LPARAM = wintypes.LONG_PTR;//ref.refType(ref.types.void);//
-wintypes.UINT_PTR = wintypes.ULONG_PTR;//64bit
-wintypes.SIZE_T= wintypes.UINT_PTR;
-wintypes.INT_PTR = ref.types.longlong;//64bit
-wintypes.SSIZE_T= wintypes.INT_PTR;
 wintypes.WPARAM = wintypes.UINT_PTR;
 wintypes.WORD = ref.types.ushort;
 wintypes.DWORD = ref.types.ulong;
@@ -115,16 +113,12 @@ wintypes.CALLBACK = ref.types.void;
 wintypes.BOOLEAN = wintypes.BYTE;
 //what is _MAC?
 wintypes.HFILE= ref.types.int;
-//if strict wintypes.HGDIOBJ = ref.refType(ref.types.void);
-["ICON","HOOK","GDIOBJ","EVENT","MODULE","RGN","KL","LOCAL","ACCEL","BITMAP","CURSOR","STR","WINSTA","LSURF","SPRITE","RSRC","METAFILE","GLOBAL","LOCAL","COLORSPACE","DC","GLRC","DESK","ENHMETAFILE","FONT","PALETTE","PEN","WINEVENTHOOK","MONITOR","UMPD","DWP","GESTUREINFO","TOUCHINPUT","SYNTHETICPOINTERDEVICE","RAWINPUT","RESULT"].forEach(_=>{wintypes["H"+_]=wintypes.HANDLE2});
-["WND","BRUSH","MENU","INSTANCE"].forEach(_=>{wintypes["H"+_]=wintypes.HANDLE2});
 wintypes.GLOBALHANDLE = wintypes.HANDLE;
 wintypes.LOCALHANDLE = wintypes.HANDLE;
 wintypes.DPI_AWARENESS_CONTEXT = wintypes.HANDLE;
 wintypes.COLORREF = wintypes.DWORD;
 wintypes.POINTER_INPUT_TYPE=wintypes.DWORD;
 wintypes.ACCESS_MASK=wintypes.DWORD;
-createWinapiPointers();
 
 wintypes.RECT=wintypes.RECTL=StructType({
 	left:wintypes.LONG,
@@ -314,7 +308,7 @@ wintypes.DLGTEMPLATEA=wintypes.DLGTEMPLATEW=wintypes.DLGTEMPLATE=StructType({
 	x:ref.types.short,
 	y:ref.types.short,
 	cx:ref.types.short,
-	lcy:ref.types.short,
+	cy:ref.types.short,
 });
 wintypes.ICONINFO=StructType({
 	fIcon:wintypes.BOOL,
@@ -394,7 +388,7 @@ fn.EnumWindowsProc = [wintypes.BOOL,[wintypes.HWND,wintypes.LPARAM]];
 fn.Sendasyncproc = [wintypes.VOID, [wintypes.HWND,wintypes.UINT,wintypes.ULONG_PTR,wintypes.LRESULT]];
 Object.keys(fn).forEach(_=>{wintypes[_]=wintypes.PVOID});
 wintypes.THREAD_START_ROUTINE=wintypes.ThreadProc;
-wintypes.WNDENUMPROC=wintypes.ThreadProc;
+wintypes.WNDENUMPROC=wintypes.EnumWindowsProc;
 wintypes.HOOKPROC=wintypes.Hookproc;
 wintypes.SENDASYNCPROC=wintypes.Sendasyncproc;
 wintypes.WNDCLASSA = StructType({
@@ -473,7 +467,7 @@ wintypes.INPUT=StructType({type:wintypes.DWORD,DUMMYUNIONNAME:new Union({mi:wint
 wintypes.NMHDR=StructType({hwndFrom:wintypes.HWND,idFrom:wintypes.UINT_PTR,code:wintypes.UINT})
 wintypes.CLIPBOARDFORMAT=StructType({nmhdr:wintypes.NMHDR,cf:wintypes.DWORD})
 wintypes.GUITHREADINFO=StructType({cbSize:wintypes.DWORD,flags:wintypes.DWORD,hwndActive:wintypes.HWND,hwndFocus:wintypes.HWND,hwndCapture:wintypes.HWND,hwndMenuOwner:wintypes.HWND,hwndMoveSize:wintypes.HWND,hwndCaret:wintypes.HWND,rcCaret:wintypes.RECT})
-createWinapiPointers();
+//createWinapiPointers();
 
 wintypes.fn=fn;
 var winterface={}
@@ -739,23 +733,23 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	DestroyCaret: [wintypes.BOOL, []],
 	DestroyCursor: [wintypes.BOOL, [wintypes.HCURSOR]],
 	DestroyIcon: [wintypes.BOOL, [wintypes.HICON]],// just crashes?
-	DestroyMenu: [wintypes.BOOL, [wintypes.HMENU]],/*
+	DestroyMenu: [wintypes.BOOL, [wintypes.HMENU]],
 	DestroySyntheticPointerDevice: [wintypes.VOID, [wintypes.HSYNTHETICPOINTERDEVICE]],
 	DestroyWindow: [wintypes.BOOL, [wintypes.HWND]],
-	DialogBoxA: [wintypes.VOID, [wintypes.HINSTANCE, wintypes.LPCTSTR, wintypes.HWND, wintypes.DLGPROC]],
-	DialogBoxIndirectA: [wintypes.VOID, [wintypes.HINSTANCE, wintypes.LPCDLGTEMPLATE, wintypes.HWND, wintypes.DLGPROC]],
+	//DialogBoxA: [wintypes.VOID, [wintypes.HINSTANCE, wintypes.LPCTSTR, wintypes.HWND, wintypes.DLGPROC]],
+	//DialogBoxIndirectA: [wintypes.VOID, [wintypes.HINSTANCE, wintypes.LPCDLGTEMPLATE, wintypes.HWND, wintypes.DLGPROC]],
 	DialogBoxIndirectParamA: [wintypes.INT_PTR, [wintypes.HINSTANCE, wintypes.LPCDLGTEMPLATEA, wintypes.HWND, wintypes.DLGPROC, wintypes.LPARAM]],
 	DialogBoxIndirectParamW: [wintypes.INT_PTR, [wintypes.HINSTANCE, wintypes.LPCDLGTEMPLATEW, wintypes.HWND, wintypes.DLGPROC, wintypes.LPARAM]],
-	DialogBoxIndirectW: [wintypes.VOID, [wintypes.HINSTANCE, wintypes.LPCDLGTEMPLATE, wintypes.HWND, wintypes.DLGPROC]],*/
+	//DialogBoxIndirectW: [wintypes.VOID, [wintypes.HINSTANCE, wintypes.LPCDLGTEMPLATE, wintypes.HWND, wintypes.DLGPROC]],
 	DialogBoxParamA: [wintypes.INT_PTR, [wintypes.HINSTANCE, wintypes.LPCSTR, wintypes.HWND, wintypes.DLGPROC, wintypes.LPARAM]],
 	DialogBoxParamW: [wintypes.INT_PTR, [wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.HWND, wintypes.DLGPROC, wintypes.LPARAM]],
 	//	DialogBoxW: [wintypes.VOID, [wintypes.HINSTANCE, wintypes.LPCTSTR, wintypes.HWND, wintypes.DLGPROC]],
 	DisableProcessWindowsGhosting: [wintypes.VOID, []],
 	//	DispatchMessage: [wintypes.LRESULT, [wintypes.MSG]],
 	DispatchMessageA: [wintypes.LRESULT, [wintypes.PMSG]],
-	DispatchMessageW: [wintypes.LRESULT, [wintypes.PMSG]],/*
-	DisplayConfigGetDeviceInfo: [wintypes.LONG, [wintypes.DISPLAYCONFIG_DEVICE_INFO_HEADER]],
-	DisplayConfigSetDeviceInfo: [wintypes.LONG, [wintypes.DISPLAYCONFIG_DEVICE_INFO_HEADER]],
+	DispatchMessageW: [wintypes.LRESULT, [wintypes.PMSG]],
+	//DisplayConfigGetDeviceInfo: [wintypes.LONG, [wintypes.DISPLAYCONFIG_DEVICE_INFO_HEADER]],
+	//DisplayConfigSetDeviceInfo: [wintypes.LONG, [wintypes.DISPLAYCONFIG_DEVICE_INFO_HEADER]],
 	DlgDirListA: [wintypes.INT, [wintypes.HWND, wintypes.LPSTR, wintypes.INT, wintypes.INT, wintypes.UINT]],
 	DlgDirListComboBoxA: [wintypes.INT, [wintypes.HWND, wintypes.LPSTR, wintypes.INT, wintypes.INT, wintypes.UINT]],
 	DlgDirListComboBoxW: [wintypes.INT, [wintypes.HWND, wintypes.LPWSTR, wintypes.INT, wintypes.INT, wintypes.UINT]],
@@ -773,8 +767,8 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	DrawIcon: [wintypes.BOOL, [wintypes.HDC, wintypes.INT, wintypes.INT, wintypes.HICON]],
 	DrawIconEx: [wintypes.BOOL, [wintypes.HDC, wintypes.INT, wintypes.INT, wintypes.HICON, wintypes.INT, wintypes.INT, wintypes.UINT, wintypes.HBRUSH, wintypes.UINT]],
 	DrawMenuBar: [wintypes.BOOL, [wintypes.HWND]],
-	DrawStateA: [wintypes.BOOL, [wintypes.HDC, wintypes.HBRUSH, wintypes.DRAWSTATEPROC, wintypes.LPARAM, wintypes.WPARAM, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.UINT]],
-	DrawStateW: [wintypes.BOOL, [wintypes.HDC, wintypes.HBRUSH, wintypes.DRAWSTATEPROC, wintypes.LPARAM, wintypes.WPARAM, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.UINT]],*/
+	//DrawStateA: [wintypes.BOOL, [wintypes.HDC, wintypes.HBRUSH, wintypes.DRAWSTATEPROC, wintypes.LPARAM, wintypes.WPARAM, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.UINT]],
+	//DrawStateW: [wintypes.BOOL, [wintypes.HDC, wintypes.HBRUSH, wintypes.DRAWSTATEPROC, wintypes.LPARAM, wintypes.WPARAM, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.UINT]],
 	//DrawText: [wintypes.INT, [wintypes.HDC, wintypes.LPCTSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT]],
 	DrawTextA: [wintypes.INT, [wintypes.HDC, wintypes.LPCSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT]],/*
 	DrawTextExA: [wintypes.INT, [wintypes.HDC, wintypes.LPSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT, wintypes.LPDRAWTEXTPARAMS]],
@@ -790,30 +784,30 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	EndDialog: [wintypes.BOOL, [wintypes.HWND, wintypes.INT_PTR]],
 	EndMenu: [wintypes.BOOL, []],
 	EndPaint: [wintypes.BOOL, [wintypes.HWND, wintypes.PPAINTSTRUCT]],
-	EndTask: [wintypes.BOOL, [wintypes.HWND, wintypes.BOOL, wintypes.BOOL]],/*
+	EndTask: [wintypes.BOOL, [wintypes.HWND, wintypes.BOOL, wintypes.BOOL]],
 	EnumChildWindows: [wintypes.BOOL, [wintypes.HWND, wintypes.WNDENUMPROC, wintypes.LPARAM]],
 	//dEnumClipboardFormats: [wintypes.UINT, [wintypes.UINT]],
-	EnumDesktopsA: [wintypes.BOOL, [wintypes.HWINSTA, wintypes.DESKTOPENUMPROCA, wintypes.LPARAM]],
-	EnumDesktopsW: [wintypes.BOOL, [wintypes.HWINSTA, wintypes.DESKTOPENUMPROCW, wintypes.LPARAM]],
+	//EnumDesktopsA: [wintypes.BOOL, [wintypes.HWINSTA, wintypes.DESKTOPENUMPROCA, wintypes.LPARAM]],
+	//EnumDesktopsW: [wintypes.BOOL, [wintypes.HWINSTA, wintypes.DESKTOPENUMPROCW, wintypes.LPARAM]],
 	EnumDesktopWindows: [wintypes.BOOL, [wintypes.HDESK, wintypes.WNDENUMPROC, wintypes.LPARAM]],
-	EnumDisplayDevicesA: [wintypes.BOOL, [wintypes.LPCSTR, wintypes.DWORD, wintypes.PDISPLAY_DEVICEA, wintypes.DWORD]],
-	EnumDisplayDevicesW: [wintypes.BOOL, [wintypes.LPCWSTR, wintypes.DWORD, wintypes.PDISPLAY_DEVICEW, wintypes.DWORD]],
-	EnumDisplayMonitors: [wintypes.BOOL, [wintypes.HDC, wintypes.LPCRECT, wintypes.MONITORENUMPROC, wintypes.LPARAM]],
+	//EnumDisplayDevicesA: [wintypes.BOOL, [wintypes.LPCSTR, wintypes.DWORD, wintypes.PDISPLAY_DEVICEA, wintypes.DWORD]],
+	//EnumDisplayDevicesW: [wintypes.BOOL, [wintypes.LPCWSTR, wintypes.DWORD, wintypes.PDISPLAY_DEVICEW, wintypes.DWORD]],
+	//EnumDisplayMonitors: [wintypes.BOOL, [wintypes.HDC, wintypes.LPCRECT, wintypes.MONITORENUMPROC, wintypes.LPARAM]],
 	EnumDisplaySettingsA: [wintypes.BOOL, [wintypes.LPCSTR, wintypes.DWORD, wintypes.DEVMODEA]],
 	EnumDisplaySettingsExA: [wintypes.BOOL, [wintypes.LPCSTR, wintypes.DWORD, wintypes.DEVMODEA, wintypes.DWORD]],
 	EnumDisplaySettingsExW: [wintypes.BOOL, [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DEVMODEW, wintypes.DWORD]],
 	EnumDisplaySettingsW: [wintypes.BOOL, [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DEVMODEW]],
-	EnumPropsA: [wintypes.INT, [wintypes.HWND, wintypes.PROPENUMPROCA]],
-	EnumPropsExA: [wintypes.INT, [wintypes.HWND, wintypes.PROPENUMPROCEXA, wintypes.LPARAM]],
-	EnumPropsExW: [wintypes.INT, [wintypes.HWND, wintypes.PROPENUMPROCEXW, wintypes.LPARAM]],
-	EnumPropsW: [wintypes.INT, [wintypes.HWND, wintypes.PROPENUMPROCW]],
+	//EnumPropsA: [wintypes.INT, [wintypes.HWND, wintypes.PROPENUMPROCA]],
+	//EnumPropsExA: [wintypes.INT, [wintypes.HWND, wintypes.PROPENUMPROCEXA, wintypes.LPARAM]],
+	//EnumPropsExW: [wintypes.INT, [wintypes.HWND, wintypes.PROPENUMPROCEXW, wintypes.LPARAM]],
+	//EnumPropsW: [wintypes.INT, [wintypes.HWND, wintypes.PROPENUMPROCW]],
 	EnumThreadWindows: [wintypes.BOOL, [wintypes.DWORD, wintypes.WNDENUMPROC, wintypes.LPARAM]],
 	EnumWindows: [wintypes.BOOL, [wintypes.WNDENUMPROC, wintypes.LPARAM]],
-	EnumWindowStationsA: [wintypes.BOOL, [wintypes.WINSTAENUMPROCA, wintypes.LPARAM]],
-	EnumWindowStationsW: [wintypes.BOOL, [wintypes.WINSTAENUMPROCW, wintypes.LPARAM]],
+	//EnumWindowStationsA: [wintypes.BOOL, [wintypes.WINSTAENUMPROCA, wintypes.LPARAM]],
+	//EnumWindowStationsW: [wintypes.BOOL, [wintypes.WINSTAENUMPROCW, wintypes.LPARAM]],
 	EqualRect: [wintypes.BOOL, [wintypes.RECT, wintypes.RECT]],
-	EvaluateProximityToPolygon: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINT, wintypes.TOUCH_HIT_TESTING_INPUT, wintypes.TOUCH_HIT_TESTING_PROXIMITY_EVALUATION]],
-	EvaluateProximityToRect: [wintypes.BOOL, [wintypes.RECT, wintypes.TOUCH_HIT_TESTING_INPUT, wintypes.TOUCH_HIT_TESTING_PROXIMITY_EVALUATION]],*/
+	//EvaluateProximityToPolygon: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINT, wintypes.TOUCH_HIT_TESTING_INPUT, wintypes.TOUCH_HIT_TESTING_PROXIMITY_EVALUATION]],
+	//EvaluateProximityToRect: [wintypes.BOOL, [wintypes.RECT, wintypes.TOUCH_HIT_TESTING_INPUT, wintypes.TOUCH_HIT_TESTING_PROXIMITY_EVALUATION]],
 	ExcludeUpdateRgn: [wintypes.INT, [wintypes.HDC, wintypes.HWND]],
 	//	ExitWindows: [wintypes.VOID, [wintypes.INT, wintypes.LONG]],
 	ExitWindowsEx: [wintypes.BOOL, [wintypes.UINT, wintypes.DWORD]],
@@ -822,12 +816,12 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	FindWindowExA: [wintypes.HWND, [wintypes.HWND, wintypes.HWND, wintypes.LPCSTR, wintypes.LPCSTR]],
 	FindWindowExW: [wintypes.HWND, [wintypes.HWND, wintypes.HWND, wintypes.LPCWSTR, wintypes.LPCWSTR]],
 	FindWindowW: [wintypes.HWND, [wintypes.LPCWSTR, wintypes.LPCWSTR]],
-	FlashWindow: [wintypes.BOOL, [wintypes.HWND, wintypes.BOOL]],/*
-	FlashWindowEx: [wintypes.BOOL, [wintypes.PFLASHWINFO]],
+	FlashWindow: [wintypes.BOOL, [wintypes.HWND, wintypes.BOOL]],
+	//FlashWindowEx: [wintypes.BOOL, [wintypes.PFLASHWINFO]],
 	FrameRect: [wintypes.INT, [wintypes.HDC, wintypes.RECT, wintypes.HBRUSH]],
 	GetActiveWindow: [wintypes.HWND, []],
-	GetAltTabInfoA: [wintypes.BOOL, [wintypes.HWND, wintypes.INT, wintypes.PALTTABINFO, wintypes.LPSTR, wintypes.UINT]],
-	GetAltTabInfoW: [wintypes.BOOL, [wintypes.HWND, wintypes.INT, wintypes.PALTTABINFO, wintypes.LPWSTR, wintypes.UINT]],
+	//GetAltTabInfoA: [wintypes.BOOL, [wintypes.HWND, wintypes.INT, wintypes.PALTTABINFO, wintypes.LPSTR, wintypes.UINT]],
+	//GetAltTabInfoW: [wintypes.BOOL, [wintypes.HWND, wintypes.INT, wintypes.PALTTABINFO, wintypes.LPWSTR, wintypes.UINT]],
 	GetAncestor: [wintypes.HWND, [wintypes.HWND, wintypes.UINT]],
 	GetAsyncKeyState: [wintypes.SHORT, [wintypes.INT]],
 	GetAutoRotationState: [wintypes.BOOL, [wintypes.PAR_STATE]],
@@ -835,11 +829,11 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	GetCapture: [wintypes.HWND, []],
 	GetCaretBlinkTime: [wintypes.UINT, []],
 	GetCaretPos: [wintypes.BOOL, [wintypes.LPPOINT]],
-	GetCIMSSM: [wintypes.BOOL, [wintypes.INPUT_MESSAGE_SOURCE]],
+	//GetCIMSSM: [wintypes.BOOL, [wintypes.INPUT_MESSAGE_SOURCE]],
 	GetClassInfoA: [wintypes.BOOL, [wintypes.HINSTANCE, wintypes.LPCSTR, wintypes.LPWNDCLASSA]],
 	GetClassInfoExA: [wintypes.BOOL, [wintypes.HINSTANCE, wintypes.LPCSTR, wintypes.LPWNDCLASSEXA]],
 	GetClassInfoExW: [wintypes.BOOL, [wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.LPWNDCLASSEXW]],
-	GetClassInfoW: [wintypes.BOOL, [wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.LPWNDCLASSW]],*/
+	GetClassInfoW: [wintypes.BOOL, [wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.LPWNDCLASSW]],
 	//GetClassLongA: [wintypes.DWORD, [wintypes.HWND, wintypes.INT]],
 	GetClassLongPtrA: [wintypes.ULONG_PTR, [wintypes.HWND, wintypes.INT]],
 	GetClassLongPtrW: [wintypes.ULONG_PTR, [wintypes.HWND, wintypes.INT]],
@@ -855,11 +849,11 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	//dGetClipboardOwner: [wintypes.HWND, []],
 	//dGetClipboardSequenceNumber: [wintypes.DWORD, []],
 	//dGetClipboardViewer: [wintypes.HWND, []],
-	GetClipCursor: [wintypes.BOOL, [wintypes.LPRECT]],/*
+	GetClipCursor: [wintypes.BOOL, [wintypes.LPRECT]],
 	GetComboBoxInfo: [wintypes.BOOL, [wintypes.HWND, wintypes.PCOMBOBOXINFO]],
 	GetCurrentInputMessageSource: [wintypes.BOOL, [wintypes.INPUT_MESSAGE_SOURCE]],
 	GetCursor: [wintypes.HCURSOR, []],
-	GetCursorInfo: [wintypes.BOOL, [wintypes.PCURSORINFO]],
+	//GetCursorInfo: [wintypes.BOOL, [wintypes.PCURSORINFO]],
 	GetCursorPos: [wintypes.BOOL, [wintypes.LPPOINT]],
 	GetDC: [wintypes.HDC, [wintypes.HWND]],
 	GetDCEx: [wintypes.HDC, [wintypes.HWND, wintypes.HRGN, wintypes.DWORD]],
@@ -887,8 +881,8 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	GetGuiResources: [wintypes.DWORD, [wintypes.HANDLE, wintypes.DWORD]],
 	//dGetGUIThreadInfo: [wintypes.BOOL, [wintypes.DWORD, wintypes.PGUITHREADINFO]],
 	GetIconInfo: [wintypes.BOOL, [wintypes.HICON, wintypes.PICONINFO]],
-	GetIconInfoExA: [wintypes.BOOL, [wintypes.HICON, wintypes.PICONINFOEXA]],
-	GetIconInfoExW: [wintypes.BOOL, [wintypes.HICON, wintypes.PICONINFOEXW]],
+	//GetIconInfoExA: [wintypes.BOOL, [wintypes.HICON, wintypes.PICONINFOEXA]],
+	//GetIconInfoExW: [wintypes.BOOL, [wintypes.HICON, wintypes.PICONINFOEXW]],
 	GetInputState: [wintypes.BOOL, []],
 	GetKBCodePage: [wintypes.UINT, []],
 	GetKeyboardLayout: [wintypes.HKL, [wintypes.DWORD]],
@@ -912,8 +906,8 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	GetMenuInfo: [wintypes.BOOL, [wintypes.HMENU, wintypes.LPMENUINFO]],
 	GetMenuItemCount: [wintypes.INT, [wintypes.HMENU]],
 	GetMenuItemID: [wintypes.UINT, [wintypes.HMENU, wintypes.INT]],
-	GetMenuItemInfoA: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.BOOL, wintypes.LPMENUITEMINFOA]],
-	GetMenuItemInfoW: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.BOOL, wintypes.LPMENUITEMINFOW]],*/
+	//GetMenuItemInfoA: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.BOOL, wintypes.LPMENUITEMINFOA]],
+	//GetMenuItemInfoW: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.BOOL, wintypes.LPMENUITEMINFOW]],
 	GetMenuItemRect: [wintypes.BOOL, [wintypes.HWND, wintypes.HMENU, wintypes.UINT, wintypes.LPRECT]],
 	GetMenuState: [wintypes.UINT, [wintypes.HMENU, wintypes.UINT, wintypes.UINT]],
 	GetMenuStringA: [wintypes.INT, [wintypes.HMENU, wintypes.UINT, wintypes.LPSTR, wintypes.INT, wintypes.UINT]],
@@ -923,9 +917,9 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	GetMessageExtraInfo: [wintypes.LPARAM, []],
 	GetMessagePos: [wintypes.DWORD, []],
 	GetMessageTime: [wintypes.LONG, []],
-	GetMessageW: [wintypes.BOOL, [wintypes.LPMSG, wintypes.HWND, wintypes.UINT, wintypes.UINT]],/*
-	GetMonitorInfoA: [wintypes.BOOL, [wintypes.HMONITOR, wintypes.LPMONITORINFO]],/*
-	GetMonitorInfoW: [wintypes.BOOL, [wintypes.HMONITOR, wintypes.LPMONITORINFO]],
+	GetMessageW: [wintypes.BOOL, [wintypes.LPMSG, wintypes.HWND, wintypes.UINT, wintypes.UINT]],
+	//GetMonitorInfoA: [wintypes.BOOL, [wintypes.HMONITOR, wintypes.LPMONITORINFO]],
+	//GetMonitorInfoW: [wintypes.BOOL, [wintypes.HMONITOR, wintypes.LPMONITORINFO]],
 	GetMouseMovePointsEx: [wintypes.INT, [wintypes.UINT, wintypes.LPMOUSEMOVEPOINT, wintypes.LPMOUSEMOVEPOINT, wintypes.INT, wintypes.DWORD]],
 	GetNextDlgGroupItem: [wintypes.HWND, [wintypes.HWND, wintypes.HWND, wintypes.BOOL]],
 	GetNextDlgTabItem: [wintypes.HWND, [wintypes.HWND, wintypes.HWND, wintypes.BOOL]],
@@ -952,7 +946,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	GetPointerPenInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_PEN_INFO]],
 	GetPointerTouchInfo: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_TOUCH_INFO]],
 	GetPointerTouchInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_TOUCH_INFO]],
-	GetPointerType: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_INPUT_TYPE]],*/
+	GetPointerType: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_INPUT_TYPE]],
 	//dGetPriorityClipboardFormat: [wintypes.INT, [wintypes.UINT, wintypes.INT]],
 	GetProcessDefaultLayout: [wintypes.BOOL, [wintypes.DWORD]],
 	GetProcessWindowStation: [wintypes.HWINSTA, []],
@@ -965,7 +959,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	GetRawInputDeviceInfoW: [wintypes.UINT, [wintypes.HANDLE, wintypes.UINT, wintypes.LPVOID, wintypes.PUINT]],
 	GetRawInputDeviceList: [wintypes.UINT, [wintypes.PRAWINPUTDEVICELIST, wintypes.PUINT, wintypes.UINT]],
 	//GetRawPointerDeviceData: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_DEVICE_PROPERTY, wintypes.LONG]],
-	GetRegisteredRawInputDevices: [wintypes.UINT, [wintypes.PRAWINPUTDEVICE, wintypes.PUINT, wintypes.UINT]],/*
+	GetRegisteredRawInputDevices: [wintypes.UINT, [wintypes.PRAWINPUTDEVICE, wintypes.PUINT, wintypes.UINT]],
 	GetScrollBarInfo: [wintypes.BOOL, [wintypes.HWND, wintypes.LONG, wintypes.PSCROLLBARINFO]],
 	GetScrollInfo: [wintypes.BOOL, [wintypes.HWND, wintypes.INT, wintypes.LPSCROLLINFO]],
 	GetScrollPos: [wintypes.INT, [wintypes.HWND, wintypes.INT]],
@@ -1016,18 +1010,18 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	GetWindowTextLengthW: [wintypes.INT, [wintypes.HWND]],
 	GetWindowTextW: [wintypes.INT, [wintypes.HWND, wintypes.LPWSTR, wintypes.INT]],
 	GetWindowThreadProcessId: [wintypes.DWORD, [wintypes.HWND, wintypes.LPDWORD]],
-	GrayStringA: [wintypes.BOOL, [wintypes.HDC, wintypes.HBRUSH, wintypes.GRAYSTRINGPROC, wintypes.LPARAM, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT]],
-	GrayStringW: [wintypes.BOOL, [wintypes.HDC, wintypes.HBRUSH, wintypes.GRAYSTRINGPROC, wintypes.LPARAM, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT]],
+	//GrayStringA: [wintypes.BOOL, [wintypes.HDC, wintypes.HBRUSH, wintypes.GRAYSTRINGPROC, wintypes.LPARAM, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT]],
+	//GrayStringW: [wintypes.BOOL, [wintypes.HDC, wintypes.HBRUSH, wintypes.GRAYSTRINGPROC, wintypes.LPARAM, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT]],
 	HideCaret: [wintypes.BOOL, [wintypes.HWND]],
 	HiliteMenuItem: [wintypes.BOOL, [wintypes.HWND, wintypes.HMENU, wintypes.UINT, wintypes.UINT]],
 	InflateRect: [wintypes.BOOL, [wintypes.LPRECT, wintypes.INT, wintypes.INT]],
 	InitializeTouchInjection: [wintypes.BOOL, [wintypes.UINT32, wintypes.DWORD]],
 	InjectSyntheticPointerInput: [wintypes.BOOL, [wintypes.HSYNTHETICPOINTERDEVICE, wintypes.POINTER_TYPE_INFO, wintypes.UINT32]],
-	InjectTouchInput: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_TOUCH_INFO]],
+	//InjectTouchInput: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_TOUCH_INFO]],
 	InSendMessageEx: [wintypes.DWORD, [wintypes.LPVOID]],
 	InsertMenuA: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.UINT, wintypes.UINT_PTR, wintypes.LPCSTR]],
-	InsertMenuItemA: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.BOOL, wintypes.LPCMENUITEMINFOA]],
-	InsertMenuItemW: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.BOOL, wintypes.LPCMENUITEMINFOW]],
+	//InsertMenuItemA: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.BOOL, wintypes.LPCMENUITEMINFOA]],
+	//InsertMenuItemW: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.BOOL, wintypes.LPCMENUITEMINFOW]],
 	InsertMenuW: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.UINT, wintypes.UINT_PTR, wintypes.LPCWSTR]],
 	InternalGetWindowText: [wintypes.INT, [wintypes.HWND, wintypes.LPWSTR, wintypes.INT]],
 	IntersectRect: [wintypes.BOOL, [wintypes.LPRECT, wintypes.RECT, wintypes.RECT]],
@@ -1081,8 +1075,8 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	LoadKeyboardLayoutA: [wintypes.HKL, [wintypes.LPCSTR, wintypes.UINT]],
 	LoadKeyboardLayoutW: [wintypes.HKL, [wintypes.LPCWSTR, wintypes.UINT]],
 	LoadMenuA: [wintypes.HMENU, [wintypes.HINSTANCE, wintypes.LPCSTR]],
-	LoadMenuIndirectA: [wintypes.HMENU, [wintypes.MENUTEMPLATEA]],
-	LoadMenuIndirectW: [wintypes.HMENU, [wintypes.MENUTEMPLATEW]],
+	//LoadMenuIndirectA: [wintypes.HMENU, [wintypes.MENUTEMPLATEA]],
+	//LoadMenuIndirectW: [wintypes.HMENU, [wintypes.MENUTEMPLATEW]],
 	LoadMenuW: [wintypes.HMENU, [wintypes.HINSTANCE, wintypes.LPCWSTR]],
 	LoadStringA: [wintypes.INT, [wintypes.HINSTANCE, wintypes.UINT, wintypes.LPSTR, wintypes.INT]],
 	LoadStringW: [wintypes.INT, [wintypes.HINSTANCE, wintypes.UINT, wintypes.LPWSTR, wintypes.INT]],
@@ -1131,7 +1125,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	OpenInputDesktop: [wintypes.HDESK, [wintypes.DWORD, wintypes.BOOL, wintypes.ACCESS_MASK]],
 	OpenWindowStationA: [wintypes.HWINSTA, [wintypes.LPCSTR, wintypes.BOOL, wintypes.ACCESS_MASK]],
 	OpenWindowStationW: [wintypes.HWINSTA, [wintypes.LPCWSTR, wintypes.BOOL, wintypes.ACCESS_MASK]],
-	PackTouchHitTestingProximityEvaluation: [wintypes.LRESULT, [wintypes.TOUCH_HIT_TESTING_INPUT, wintypes.TOUCH_HIT_TESTING_PROXIMITY_EVALUATION]],*/
+	PackTouchHitTestingProximityEvaluation: [wintypes.LRESULT, [wintypes.TOUCH_HIT_TESTING_INPUT, wintypes.TOUCH_HIT_TESTING_PROXIMITY_EVALUATION]],
 	PaintDesktop: [wintypes.BOOL, [wintypes.HDC]],
 	PeekMessageA: [wintypes.BOOL, [wintypes.LPMSG, wintypes.HWND, wintypes.UINT, wintypes.UINT, wintypes.UINT]],
 	PeekMessageW: [wintypes.BOOL, [wintypes.LPMSG, wintypes.HWND, wintypes.UINT, wintypes.UINT, wintypes.UINT]],
@@ -1163,7 +1157,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	RegisterPointerInputTargetEx: [wintypes.BOOL, [wintypes.HWND, wintypes.POINTER_INPUT_TYPE, wintypes.BOOL]],
 	RegisterPowerSettingNotification: [wintypes.HPOWERNOTIFY, [wintypes.HANDLE, wintypes.LPCGUID, wintypes.DWORD]],*/
 	RegisterRawInputDevices: [wintypes.BOOL, [wintypes.PCRAWINPUTDEVICE, wintypes.UINT, wintypes.UINT]],
-	RegisterShellHookWindow: [wintypes.BOOL, [wintypes.HWND]],/*
+	RegisterShellHookWindow: [wintypes.BOOL, [wintypes.HWND]],
 	RegisterSuspendResumeNotification: [wintypes.HPOWERNOTIFY, [wintypes.HANDLE, wintypes.DWORD]],
 	RegisterTouchHitTestingWindow: [wintypes.BOOL, [wintypes.HWND, wintypes.ULONG]],
 	RegisterTouchWindow: [wintypes.BOOL, [wintypes.HWND, wintypes.ULONG]],
@@ -1246,19 +1240,19 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	SetSystemCursor: [wintypes.BOOL, [wintypes.HCURSOR, wintypes.DWORD]],
 	SetThreadDesktop: [wintypes.BOOL, [wintypes.HDESK]],
 	SetThreadDpiAwarenessContext: [wintypes.DPI_AWARENESS_CONTEXT, [wintypes.DPI_AWARENESS_CONTEXT]],
-	SetThreadDpiHostingBehavior: [wintypes.DPI_HOSTING_BEHAVIOR, [wintypes.DPI_HOSTING_BEHAVIOR]],
-	SetTimer: [wintypes.UINT_PTR, [wintypes.HWND, wintypes.UINT_PTR, wintypes.UINT, wintypes.TIMERPROC]],
+	//SetThreadDpiHostingBehavior: [wintypes.DPI_HOSTING_BEHAVIOR, [wintypes.DPI_HOSTING_BEHAVIOR]],
+	//SetTimer: [wintypes.UINT_PTR, [wintypes.HWND, wintypes.UINT_PTR, wintypes.UINT, wintypes.TIMERPROC]],
 	SetUserObjectInformationA: [wintypes.BOOL, [wintypes.HANDLE, wintypes.INT, wintypes.PVOID, wintypes.DWORD]],
 	SetUserObjectInformationW: [wintypes.BOOL, [wintypes.HANDLE, wintypes.INT, wintypes.PVOID, wintypes.DWORD]],
-	SetUserObjectSecurity: [wintypes.BOOL, [wintypes.HANDLE, wintypes.PSECURITY_INFORMATION, wintypes.PSECURITY_DESCRIPTOR]],
+	//SetUserObjectSecurity: [wintypes.BOOL, [wintypes.HANDLE, wintypes.PSECURITY_INFORMATION, wintypes.PSECURITY_DESCRIPTOR]],
 	SetWindowContextHelpId: [wintypes.BOOL, [wintypes.HWND, wintypes.DWORD]],
 	SetWindowDisplayAffinity: [wintypes.BOOL, [wintypes.HWND, wintypes.DWORD]],
-	SetWindowFeedbackSetting: [wintypes.BOOL, [wintypes.HWND, wintypes.FEEDBACK_TYPE, wintypes.DWORD, wintypes.UINT32, wintypes.VOID]],
+	//SetWindowFeedbackSetting: [wintypes.BOOL, [wintypes.HWND, wintypes.FEEDBACK_TYPE, wintypes.DWORD, wintypes.UINT32, wintypes.VOID]],
 	SetWindowLongA: [wintypes.LONG, [wintypes.HWND, wintypes.INT, wintypes.LONG]],
 	SetWindowLongPtrA: [wintypes.LONG_PTR, [wintypes.HWND, wintypes.INT, wintypes.LONG_PTR]],
 	SetWindowLongPtrW: [wintypes.LONG_PTR, [wintypes.HWND, wintypes.INT, wintypes.LONG_PTR]],
 	SetWindowLongW: [wintypes.LONG, [wintypes.HWND, wintypes.INT, wintypes.LONG]],
-	SetWindowPlacement: [wintypes.BOOL, [wintypes.HWND, wintypes.WINDOWPLACEMENT]],*/
+	//SetWindowPlacement: [wintypes.BOOL, [wintypes.HWND, wintypes.WINDOWPLACEMENT]],
 	SetWindowPos: [wintypes.BOOL, [wintypes.HWND, wintypes.HWND, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.UINT]],
 	SetWindowRgn: [wintypes.INT, [wintypes.HWND, wintypes.HRGN, wintypes.BOOL]],
 	SetWindowsHookExA: [wintypes.HHOOK, [wintypes.INT, wintypes.HOOKPROC, wintypes.HINSTANCE, wintypes.DWORD]],
@@ -1299,20 +1293,20 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	TranslateAcceleratorW: [wintypes.INT, [wintypes.HWND, wintypes.HACCEL, wintypes.LPMSG]],
 	TranslateMDISysAccel: [wintypes.BOOL, [wintypes.HWND, wintypes.LPMSG]],
 	TranslateMessage: [wintypes.BOOL, [wintypes.PMSG]],
-	UnhookWindowsHookEx: [wintypes.BOOL, [wintypes.HHOOK]],/*
+	UnhookWindowsHookEx: [wintypes.BOOL, [wintypes.HHOOK]],
 	UnhookWinEvent: [wintypes.BOOL, [wintypes.HWINEVENTHOOK]],
 	UnionRect: [wintypes.BOOL, [wintypes.LPRECT, wintypes.RECT, wintypes.RECT]],
 	UnloadKeyboardLayout: [wintypes.BOOL, [wintypes.HKL]],
 	UnregisterClassA: [wintypes.BOOL, [wintypes.LPCSTR, wintypes.HINSTANCE]],
 	UnregisterClassW: [wintypes.BOOL, [wintypes.LPCWSTR, wintypes.HINSTANCE]],
-	UnregisterDeviceNotification: [wintypes.BOOL, [wintypes.HDEVNOTIFY]],*/
-	UnregisterHotKey: [wintypes.BOOL, [wintypes.HWND, wintypes.INT]],/*
+	UnregisterDeviceNotification: [wintypes.BOOL, [wintypes.HDEVNOTIFY]],
+	UnregisterHotKey: [wintypes.BOOL, [wintypes.HWND, wintypes.INT]],
 	UnregisterPointerInputTarget: [wintypes.BOOL, [wintypes.HWND, wintypes.POINTER_INPUT_TYPE]],
 	UnregisterPointerInputTargetEx: [wintypes.BOOL, [wintypes.HWND, wintypes.POINTER_INPUT_TYPE]],
 	UnregisterPowerSettingNotification: [wintypes.BOOL, [wintypes.HPOWERNOTIFY]],
 	UnregisterSuspendResumeNotification: [wintypes.BOOL, [wintypes.HPOWERNOTIFY]],
-	UnregisterTouchWindow: [wintypes.BOOL, [wintypes.HWND]],/
-	UpdateLayeredWindow: [wintypes.BOOL, [wintypes.HWND, wintypes.HDC, wintypes.POINT, wintypes.SIZE, wintypes.HDC, wintypes.POINT, wintypes.COLORREF, wintypes.BLENDFUNCTION, wintypes.DWORD]],*/
+	UnregisterTouchWindow: [wintypes.BOOL, [wintypes.HWND]],
+	//UpdateLayeredWindow: [wintypes.BOOL, [wintypes.HWND, wintypes.HDC, wintypes.POINT, wintypes.SIZE, wintypes.HDC, wintypes.POINT, wintypes.COLORREF, wintypes.BLENDFUNCTION, wintypes.DWORD]],
 	UpdateWindow: [wintypes.BOOL, [wintypes.HWND]],
 	UserHandleGrantAccess: [wintypes.BOOL, [wintypes.HANDLE, wintypes.HANDLE, wintypes.BOOL]],
 	ValidateRect: [wintypes.BOOL, [wintypes.HWND, wintypes.RECT]],
@@ -1330,32 +1324,26 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	WinHelpW: [wintypes.BOOL, [wintypes.HWND, wintypes.LPCWSTR, wintypes.UINT, wintypes.ULONG_PTR]]
 }
 //Don't use ffi.Library, use DynamicLibrary instead!
-var user32dll=ffi.DynamicLibrary("User32.dll", ffi.DynamicLibrary.FLAGS.RTLD_LAZY);
-var current={};
-Object.entries(winterface.User32).forEach(([fname,[rtype,args]])=>{
-	try{
-		current[fname]=ffi.ForeignFunction(user32dll.get(fname),rtype,args);
-	}
-	catch(x){
-		console.log(x,fname+" couldn't be loaded :(")
-	}
-	
-})
-function loadFunctions(objtosave,pathofdll,functions){
+function loadFunctions(pathofdll,functions){
+	var objtosave={}
 	var dllmem=ffi.DynamicLibrary(pathofdll, ffi.DynamicLibrary.FLAGS.RTLD_LAZY);
 	Object.entries(functions).forEach(([fname,[rtype,args]])=>{
 	try{
 		objtosave[fname]=ffi.ForeignFunction(dllmem.get(fname),rtype,args);
 	}
 	catch(x){
-		console.log(x,fname+" couldn't be loaded :(")
+		console.log(fname+" couldn't be loaded :(")
 	}
 	
-})
+});
+return objtosave;
 }
+var current=loadFunctions("User32.dll",winterface.User32);
+//console.log('current',current)
+
 //var current = ffi.Library("User32.dll", winterface.User32);
-var gdi32 = ffi.Library("gdi32.dll", winterface.gdi32);
-var kernel32 = ffi.Library("kernel32.dll", winterface.Kernel32);
+var gdi32 = loadFunctions("gdi32.dll", winterface.gdi32);
+var kernel32 = loadFunctions("kernel32.dll", winterface.Kernel32);
 
 var constants={}
 //console.log([wintypes.HWND, [wintypes.HINSTANCE, wintypes.LPCDLGTEMPLATEW, wintypes.HWND, wintypes.DLGPROC, wintypes.LPARAM]])
@@ -2155,19 +2143,7 @@ wClass.lpfnWndProc=WindowProc;
 wClass.lpszClassName=sclass;
 if(winapi.goodies.RegisterClassA(wClass.ref())){
 	//var dStyle= constants.styles.WS_CAPTION|constants.styles.WS_SYSMENU;
-	console.log("createwindowexa arguments",
-	params.ExStyle,
-	sclass,
-	params.title,
-	params.Style,
-	params.X,
-	params.Y,
-	params.nWidth,
-	params.nHeight,
-	params.hWndParent,
-	params.hMenu,
-	params.hInstance,
-	params.lParam);
+	
 	var hwnd=winapi.goodies.CreateWindowExA(
 	params.ExStyle,
 	sclass,

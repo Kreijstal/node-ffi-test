@@ -55,11 +55,11 @@ mwin.on("WM_CLIPBOARDUPDATE", (obj) => {
     console.log(clipformats)
     console.log(clipformats.map(_ => constants.clipboardFormats[_]))
   var hglb = user32.GetClipboardData(constants.clipboardFormats.CF_TEXT) //,wintypes.HGLOBAL);	   
-  var lptstr = kernel32.GlobalLock(hglb.address());
-  var size = kernel32.GlobalSize(hglb.address());
+  var lptstr = kernel32.GlobalLock(hglb);
+  var size = kernel32.GlobalSize(hglb);
   console.log("buffer size:", size)
   console.log(ref.reinterpret(lptstr, size).toString());
-  kernel32.GlobalUnlock(hglb.address())
+  kernel32.GlobalUnlock(hglb)
   user32.CloseClipboard();
 });
 mwin.on("WM_PAINT", (obj) => {
