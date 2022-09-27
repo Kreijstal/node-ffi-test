@@ -11,87 +11,13 @@ var {
   wintypes,
   kernel32
 } = require('./winapi.js')
-var util=require('node:util')
+//var util = require('util');
 
-var udp = require('dgram');
+//doesn't work because it calls it from another thread, and it's even slower.
+//var user32async=Object.fromEntries(Object.entries(user32).map(([k,v])=>[k,util.promisify(v.async)]))
+//var gdi32async=Object.fromEntries(Object.entries(gdi32).map(([k,v])=>[k,util.promisify(v.async)]))
 
-var udps = udp.createSocket({
-    type: 'udp4',
-    reuseAddr: true // <- NOTE: we are asking OS to let us reuse port
-  });
 
-var t={};
-var commands={"messagebox":_=>user32.MessageBoxA(0, "example", "something fun here as well", constants.msgbox.MB_OK | constants.msgbox.MB_ICONEXCLAMATION),
-"eval":_=>util.inspect(eval(_)),
-"getavailableclipboardformats":_=>{
-	var clipcount = user32.CountClipboardFormats();
-    var clipformats = [];
-    var intervalue = 0;
-    while (clipcount--) {
-      intervalue = user32.EnumClipboardFormats(intervalue)
-      clipformats.push(intervalue)
-    }
-
-    console.log(clipformats)
-    console.log(clipformats.map(_ => constants.clipboardFormats[_]))
-},
-"getclipboard":_=>{
-	if (!user32.IsClipboardFormatAvailable(_) || !user32.OpenClipboard(0))
-    return;
-  
-  var hglb = user32.GetClipboardData(_) //,wintypes.HGLOBAL);	   
-  var lptstr = kernel32.GlobalLock(hglb);
-  var size = kernel32.GlobalSize(hglb);
-  console.log("buffer size:", size)
-  var k=(ref.reinterpret(lptstr, size).toString());
-  kernel32.GlobalUnlock(hglb)
-  user32.CloseClipboard();
-  return k;
-},
-"paste":_=>{
-	var hWnd = winapi.goodies.getFocusedHandle();
-	return utils.promisify(winapi.goodies.SendMessageCallbackA)(hWnd, constants.msg.WM_PASTE, 0, 0);
-},
-"setclipboard":_=>_,
-"copy":_=>{
-	var hWnd = winapi.goodies.getFocusedHandle();
-	return utils.promisify(winapi.goodies.SendMessageCallbackA)(hWnd, constants.msg.WM_COPY, 0, 0);
-},"usetcp":_=>{
-	var net = require('net');
-
-    var server = net.createServer(function(socket) {
-	socket.write('Echo server\r\n');
-	socket.pipe(socket);
-    });
-
-server.listen(1337, '127.0.0.1');
-	
-}
-};
-udps.on('message',async function(msg,info){
-  t[info.address+'/'+info.port]=info;	
-  console.log('Data received: ' + msg.toString());
-  console.log('Received %d bytes from %s:%d\n',msg.length, info.address, info.port);
-  /*try{
-	  JSON.stringify(msg.toString());
-  }catch(x)console.log('not a json command');*/
-  
-  var c=msg.toString().match(/^([^ ]*)(?: (.*))?/)
-  console.log(c,c[1],c[2])
-  if(c[1].trim() in commands){
-	  var r=await commands[c[1].trim()](...(c[2]?c[2].split(","):[]));
-	  udps.send(Buffer.from(r?.toString()??"ok"),info.port,info.address,console.log)
-	  }
-  else {
-	  udps.send(Buffer.from(`command ${c[1].trim()} not found`),info.port,info.address,console.log);
-  }
-});
-
-function msg(msg){
-//sending msg
-Object.entries(t).forEach(([k,v])=>udps.send(Buffer.from(msg),v.port,v.address,console.log));
-}
-udps.bind(2222);
 
 var mwin = winapi.goodies.createWindow({
   className: "someclass\0",
@@ -115,7 +41,7 @@ mwin.on("WM_CLIPBOARDUPDATE", (obj) => {
     wParam,
     lParam
   } = obj;
-  msg("Clipboard has changed mf");
+  console.log("Clipboard has changed mf");
   if (!user32.IsClipboardFormatAvailable(constants.clipboardFormats.CF_TEXT) || !user32.OpenClipboard(hwnd))
     return;
   var clipcount = user32.CountClipboardFormats();
@@ -132,7 +58,7 @@ mwin.on("WM_CLIPBOARDUPDATE", (obj) => {
   var lptstr = kernel32.GlobalLock(hglb);
   var size = kernel32.GlobalSize(hglb);
   console.log("buffer size:", size)
-  msg(ref.reinterpret(lptstr, size).toString());
+  console.log(ref.reinterpret(lptstr, size).toString());
   kernel32.GlobalUnlock(hglb)
   user32.CloseClipboard();
 });
@@ -162,7 +88,6 @@ mwin.on("WM_DESTROY", (obj) => {
   //winapi.goodies.win32messageHandler.close();
   obj.preventDefaulted = true;
   obj.result = 0;
-  udps.close();
 });
 
 
@@ -182,8 +107,15 @@ function registerhotkey() {
   }
 }
 registerhotkey();
+var devices=winapi.goodies.getRawInputDeviceList();
+var devecinames=devices._toJSON().map(_=>winapi.goodies.getRawInputDeviceInfo(_.hDevice,constants.RawInputDeviceInformationCommand.RIDI_DEVICENAME))
+
+//console.log(devices.toJSON().map(_=>_.toJSON()).map(_=>winapi.goodies.getRawInputDeviceInfo(_.hDevice,constants.RawInputDeviceInformationCommand.RIDI_DEVICENAME)))
 winapi.goodies.callbacks = [mwin, proc];
 
+winapi.goodies.win32messageHandler.on("WM_KEYUP", (l, w) => {
+  console.log("WM_KEYUP", l, w, constants.keys[w] || String.fromCharCode(w))
+});
 
 function onhotkey(lParam, wParam) {
   //console.log("message..",constants.msg[msg.message],msg.message.toString(16));	
@@ -210,9 +142,14 @@ function onhotkey(lParam, wParam) {
       l.DUMMYUNIONNAME.ki.dwFlags = KEYEVENTF_KEYUP;
       bufferarr.push(l.ref());
     }
+    //function onkeyup(lParam,wParam){
 
+
+    //}
+    //winapi.goodies.win32messageHandler.conditionalOnce("WM_KEYUP",onkeyup,(lParam,wParam)=>);
 	var hWnd = winapi.goodies.getFocusedHandle();
 	winapi.goodies.SendMessageCallbackA(hWnd, constants.msg.WM_COPY, 0, 0,_=>{console.log("I've been called back?")})
+    //user32.PostMessageA();
 	console.log('copy?')
     var win = new wintypes.INPUT();
     win.type = INPUT_KEYBOARD;
@@ -232,9 +169,16 @@ function onhotkey(lParam, wParam) {
     mclick.DUMMYUNIONNAME.mi.time = 0;
     mclick.DUMMYUNIONNAME.mi.dwExtraInfo = 0;
     bufferarr.push(mclick.ref());
+    //console.log(Buffer.concat(bufferarr))
+    //console.log("before sendinput")
+    //winapi.goodies.errorHandling(user32.SendInput, _ => _ !== bufferarr.length, "sendInput")(bufferarr.length, Buffer.concat(bufferarr), wintypes.INPUT.size);
+    //console.log("after sendinput")
     win.DUMMYUNIONNAME.ki.dwFlags = KEYEVENTF_KEYUP;
-
+    //user32.SendInput(1, win.ref(), wintypes.INPUT.size);
+    //winapi.kernel32.CreateThread(null, 0, proc, ref.NULL, 0, ref.NULL);
+    //user32.MessageBoxA(0, ref.allocCString("Mire al cielo"), "un programa muy interesante", 0);
   }
 }
-
+winapi.goodies.win32messageHandler.on("WM_CLIPBOARDUPDATE",_=>{console.log("wow this executed?")});
 winapi.goodies.win32messageHandler.on("WM_HOTKEY", onhotkey);
+winapi.goodies.win32messageHandler.on("WH_KEYBOARD_LL",_=>console.log(Object.fromEntries(Object.entries(_).map(([k,v])=>{if(k=="vkCode")return [k,constants.keys[v]||String.fromCharCode(v)]; else return [k,v]}))));
