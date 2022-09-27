@@ -481,7 +481,8 @@ var kernel32extract=[
 {"params":[["hMem","in","HGLOBAL"]],"rtype":"LPVOID","type":"function","name":"GlobalLock"},
 {"params":[["hMem","in","HGLOBAL"]],"rtype":"BOOL","type":"function","name":"GlobalUnlock"},
 {"params":[["uFlags","in","UINT"],["dwBytes","in","SIZE_T"]],"rtype":"HGLOBAL","type":"function","name":"GlobalAlloc"},
-{"params":[["hMem","in","HGLOBAL"]],"rtype":"SIZE_T","type":"function","name":"GlobalSize"}
+{"params":[["hMem","in","HGLOBAL"]],"rtype":"SIZE_T","type":"function","name":"GlobalSize"},
+{"params":[["hMem","in","HGLOBAL"]],"rtype":"HGLOBAL","type":"function","name":"GlobalFree"}
 ]
 winterface.Kernel32={...kernel32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype],b.params.map(_=>wintypes[_[2]])];return a;},{}),
   FormatMessageA: [wintypes.DWORD,  [wintypes.DWORD, wintypes.LPCVOID, wintypes.DWORD, wintypes.DWORD, wintypes.LPSTR, wintypes.DWORD, wintypes.va_list] ],
@@ -2041,6 +2042,12 @@ function oneTimeListen(event,starter,remover){
 }
 	win32messageHandler.conditionalOnce('newListener',beginEventLoop,c);
 }
+function typePointerBuffer(p,t){
+	var load=Buffer.allocUnsafe(8);
+	load.writeBigUint64LE(BigInt(p));
+	load.type=t;
+	return load;
+}
 oneTimeListen("message",_=>setInterval(_=>{
 			var i=0;
 			//Don't use GetMessage, it blocks making node unable to do anything else!
@@ -2050,9 +2057,7 @@ oneTimeListen("message",_=>setInterval(_=>{
 		},0),_=>{clearInterval(_);return true});
 var keyHandler_LL=ffi.Callback(...wintypes.fn.Hookproc,(nCode,wParam,lParam)=>{
 	//console.log(nCode,"ncode")
-		var load=Buffer.alloc(8);
-		load.writeBigUint64LE(BigInt(lParam));
-		load.type=ref.refType(wintypes.KBDLLHOOKSTRUCT);
+		var load=typePointerBuffer(lParam,ref.refType(wintypes.KBDLLHOOKSTRUCT))
 		var kbldstruct=Object.fromEntries(load.deref().deref().toJSON());
 		var obj={nCode,wParam,...kbldstruct};
 		win32messageHandler.emit("WH_KEYBOARD_LL",obj);
@@ -2175,7 +2180,7 @@ if(winapi.goodies.RegisterClassA(wClass.ref())){
 }	
 return window;
 }
-
+goodies.typePointerBuffer=typePointerBuffer;
 goodies.getFocusedHandle=function GetFocusedHandle(){
 	//from https://stackoverflow.com/questions/12102000/send-win-api-paste-cmd-from-background-c-sharp-app
 	var info = new wintypes.GUITHREADINFO();
@@ -2185,13 +2190,17 @@ goodies.getFocusedHandle=function GetFocusedHandle(){
     return info.hwndFocus;	
 }
 var messagecallback = ffi.Callback(...wintypes.fn.Sendasyncproc, (hWnd,uMsg,dwData,lresult) => {
-  messagecallback.relateddata[dwData-1](hWnd,uMsg,lresult);
+  messagecallback.relateddata[dwData-1](null,hWnd,uMsg,lresult);
   messagecallback.relateddata.splice(dwData-1,1);
 });
 messagecallback.relateddata=[];
 goodies.SendMessageCallbackA=function SendMessageCallbackA(hWnd,uMsg,wParam,lParam,cb){
 	var s=messagecallback.relateddata.push(cb);
-	return current.SendMessageCallbackA(hWnd,uMsg,wParam,lParam,messagecallback,s);
+	var r=current.SendMessageCallbackA(hWnd,uMsg,wParam,lParam,messagecallback,s);
+	if(!r){
+		messagecallback.relateddata.pop();
+		cb(Error(Win32Exception()));
+		}
 }
 var winapi={ffi,goodies,constants,gdi32,kernel32,ref,Union,Struct:StructType,Array:ArrayType};
 

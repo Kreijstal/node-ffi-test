@@ -36,7 +36,7 @@ var commands={"messagebox":_=>user32.MessageBoxA(0, "example", "something fun he
     console.log(clipformats.map(_ => constants.clipboardFormats[_]))
 },
 "getclipboard":_=>{
-	if (!user32.IsClipboardFormatAvailable(_) || !user32.OpenClipboard(0))
+	if (!user32.IsClipboardFormatAvailable(+_) || !user32.OpenClipboard(0))
     return;
   
   var hglb = user32.GetClipboardData(_) //,wintypes.HGLOBAL);	   
@@ -50,9 +50,39 @@ var commands={"messagebox":_=>user32.MessageBoxA(0, "example", "something fun he
 },
 "paste":_=>{
 	var hWnd = winapi.goodies.getFocusedHandle();
-	return utils.promisify(winapi.goodies.SendMessageCallbackA)(hWnd, constants.msg.WM_PASTE, 0, 0);
+	return util.promisify(winapi.goodies.SendMessageCallbackA)(hWnd, constants.msg.WM_PASTE, 0, 0);
 },
-"setclipboard":_=>_,
+"setclipboard":_=>{
+	const GMEM_MOVEABLE=0x2
+	var x=splitat(_);
+	
+  if(x.length<2){
+	  return "Err";}
+  function splitat(str,substr=","){
+	  var i=str.indexOf(substr);
+//console.log(i)
+	  if(i==-1)return [str];
+//console.log(i)
+	  return [str.slice(0,i),str.slice(i+1)]
+  }
+  //var hglb = user32.GetClipboardData(_) //,wintypes.HGLOBAL);	   
+  var stringbuffer=Buffer.from(x[1]+'\0');
+  var hmem=kernel32.GlobalAlloc(GMEM_MOVEABLE,stringbuffer.length);
+  
+  var lptstr = kernel32.GlobalLock(hmem);
+  stringbuffer.copy(ref.reinterpret(lptstr, stringbuffer.length));
+  kernel32.GlobalUnlock(hmem);
+  	if (!user32.OpenClipboard(0)){
+	kernel32.GlobalLock(hmem);
+	kernel32.GlobalFree(hmem);
+	kernel32.GlobalUnlock(hmem);
+    return "Err";
+	}
+  user32.EmptyClipboard();
+  user32.SetClipboardData(+x[0], hmem);
+  user32.CloseClipboard();
+  return "ok";
+},
 "copy":_=>{
 	var hWnd = winapi.goodies.getFocusedHandle();
 	return utils.promisify(winapi.goodies.SendMessageCallbackA)(hWnd, constants.msg.WM_COPY, 0, 0);
@@ -79,7 +109,7 @@ udps.on('message',async function(msg,info){
   var c=msg.toString().match(/^([^ ]*)(?: (.*))?/)
   console.log(c,c[1],c[2])
   if(c[1].trim() in commands){
-	  var r=await commands[c[1].trim()](...(c[2]?c[2].split(","):[]));
+	  var r=await commands[c[1].trim()](c[2]);
 	  udps.send(Buffer.from(r?.toString()??"ok"),info.port,info.address,console.log)
 	  }
   else {
@@ -238,3 +268,11 @@ function onhotkey(lParam, wParam) {
 }
 
 winapi.goodies.win32messageHandler.on("WM_HOTKEY", onhotkey);
+var repl=require('node:repl');
+var context=repl.start({prompt:'> ',useGlobal:true});
+
+context.context["udps"]=udps
+context.context["commands"]=commands
+context.context["msg"]=msg
+context.context["mwin"]=mwin
+
