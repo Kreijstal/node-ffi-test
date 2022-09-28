@@ -89,17 +89,8 @@ has: function(target, name) {
 });
 
 wintypes.WCHAR=wintypes.WSTR= ref.types.wchar_t;
-//wintypes.VOID= ref.types.void;
 wintypes.WCH=wintypes.WSTR;
 wintypes.NWPSTR=wintypes.PWCHAR;
-//wintypes.INT= ref.types.int;
-//wintypes.FLOAT= ref.types.float;
-//wintypes.ULONG= ref.types.ulong;
-//wintypes.LONG = ref.types.long;
-//wintypes.CHAR = ref.types.char;
-//wintypes.UINT = ref.types.uint;
-//wintypes.SHORT = ref.types.short;
-//wintypes.USHORT = ref.types.ushort;
 wintypes.SSIZE_T= wintypes.INT_PTR=wintypes.LONG_PTR = ref.types.int64;//64bit
 wintypes.SIZE_T=wintypes.UINT_PTR=wintypes.ULONG_PTR = ref.types.uint64;//64bit
 wintypes.LRESULT = wintypes.LONG_PTR;
@@ -2194,6 +2185,14 @@ var messagecallback = ffi.Callback(...wintypes.fn.Sendasyncproc, (hWnd,uMsg,dwDa
   messagecallback.relateddata.splice(dwData-1,1);
 });
 messagecallback.relateddata=[];
+/**
+ * 
+ * @param {Number} hWnd 
+ * @param {Number} uMsg 
+ * @param {Number} wParam 
+ * @param {Number} lParam 
+ * @param {Sendasyncproc} cb 
+ */
 goodies.SendMessageCallbackA=function SendMessageCallbackA(hWnd,uMsg,wParam,lParam,cb){
 	var s=messagecallback.relateddata.push(cb);
 	var r=current.SendMessageCallbackA(hWnd,uMsg,wParam,lParam,messagecallback,s);
@@ -2202,6 +2201,14 @@ goodies.SendMessageCallbackA=function SendMessageCallbackA(hWnd,uMsg,wParam,lPar
 		cb(Error(Win32Exception()));
 		}
 }
+/**
+ * This callback is displayed as a global member.
+ * @callback Sendasyncproc
+ * @param {*} error
+ * @param {Number} hWnd
+ * @param {Number} uMsg
+ * @param {Number} lresult
+ */
 var winapi={ffi,goodies,constants,gdi32,kernel32,ref,Union,Struct:StructType,Array:ArrayType};
 
 
