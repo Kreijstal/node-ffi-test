@@ -1,5 +1,5 @@
 {
-  "name": "winffiapi",
+  "name": "@kreijstal/winffiapi",
   "version": "0.0.1",
   "description": "This is supposed to be a winapi where you call it as if you called windows itself but it gives a goodies whwhere stuff simplifies.",
   "main": "winapi.js",
