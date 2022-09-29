@@ -16,7 +16,51 @@ var type=this?.type?.name;
 var address=this.address();
 return {...obj,size,indirection,type,address};
 }
+const isObject = (input) => (
+  null !== input &&  typeof input === 'object' &&     Object.getPrototypeOf(input).isPrototypeOf(Object)
+)
 
+ /**
+ * @param   {object}    obj
+ * @param   {string}    path
+ * @param   {any}       value
+ */
+
+const setByString = (obj, path, value) => {
+  const pList = Array.isArray(path) ? path : path.split('.');
+  const len = pList.length;
+  // changes second last key to {}
+  for (let i = 0; i < len - 1; i++) {
+    const elem = pList[i];
+    if (!obj[elem] || !isObject(obj[elem])) {
+      obj[elem] = {};
+    }
+    obj = obj[elem];
+  }
+
+  // set value to second last key
+  obj[pList[len - 1]] = value;
+};
+function flattenObject(o, prefix = '', result = {}, keepNull = true) {
+  if (typeof o!=="object" || (keepNull && o==null)) {
+    result[prefix] = o;
+    return result;
+  }
+    for (let i in o) {
+      let pref = prefix;
+      if (Array.isArray(o)) {
+        pref = pref + `[${i}]`;
+      } else {
+        if (Object.keys(prefix).length === 0) {
+          pref = i;
+        } else {
+          pref = prefix + '.' + i;
+        }
+      }
+      flattenObject(o[i], pref, result, keepNull);
+    }
+    return result;
+}
 function StructType(){
 	function toJSONrec(){
 	return Object.entries(this._toJSON()).map(([k,v])=>[k,(v.toJSON)?v.toJSON():v])
@@ -24,6 +68,10 @@ function StructType(){
 	var obj=Struct(...arguments);
 	obj.prototype._toJSON=obj.prototype.toJSON
 	obj.prototype.toJSON=toJSONrec;
+	obj.prototype.fromObject=function(d){
+//var l=this;
+Object.entries(flattenObject(d)).forEach(([k,v])=>setByString(this,k,v))
+	}
 	return obj;
 }
 function ArrayType(){
@@ -2116,6 +2164,7 @@ win32messageHandler.open=_=>{
 win32messageHandler.close=_=>{
 	win32messageHandler.removeDependency('message')
 };
+
 goodies.createWindow=function createWindow(params){
 	var window=new events();
 	var WindowProc=ffi.Callback(...wintypes.fn.WNDPROC,

@@ -21,6 +21,11 @@ var udps = udp.createSocket({
   });
 
 var t={};
+const INPUT_MOUSE = 0;
+const INPUT_KEYBOARD = 1;
+const KEYEVENTF_KEYUP = 2;
+const MOUSEEVENTF_MOVE = 1;
+const HWND_BROADCAST = 0xffff;
 var commands={"messagebox":_=>user32.MessageBoxA(0, "example", "something fun here as well", constants.msgbox.MB_OK | constants.msgbox.MB_ICONEXCLAMATION),
 "eval":_=>util.inspect(eval(_)),
 "getavailableclipboardformats":_=>{
@@ -60,9 +65,7 @@ var commands={"messagebox":_=>user32.MessageBoxA(0, "example", "something fun he
 	  return "Err";}
   function splitat(str,substr=","){
 	  var i=str.indexOf(substr);
-//console.log(i)
 	  if(i==-1)return [str];
-//console.log(i)
 	  return [str.slice(0,i),str.slice(i+1)]
   }
   //var hglb = user32.GetClipboardData(_) //,wintypes.HGLOBAL);	   
@@ -218,11 +221,7 @@ winapi.goodies.callbacks = [mwin, proc];
 function onhotkey(lParam, wParam) {
   //console.log("message..",constants.msg[msg.message],msg.message.toString(16));	
   console.log('hotkey executed')
-  const INPUT_MOUSE = 0;
-  const INPUT_KEYBOARD = 1;
-  const KEYEVENTF_KEYUP = 2;
-  const MOUSEEVENTF_MOVE = 1;
-  const HWND_BROADCAST = 0xffff;
+  
   //user32.UnregisterHotKey(0,1);
   //user32.PostMessageA(HWND_BROADCAST,constants.msg.WM_HOTKEY,wParam,lParam);
   //registerhotkey();
@@ -236,14 +235,15 @@ function onhotkey(lParam, wParam) {
       l.DUMMYUNIONNAME.ki.time = 0;
       l.DUMMYUNIONNAME.ki.dwExtraInfo = 0;
       l.DUMMYUNIONNAME.ki.wVk = constants.keys.VK_CONTROL;
-      l.DUMMYUNIONNAME.ki.dwFlags = 0;
       l.DUMMYUNIONNAME.ki.dwFlags = KEYEVENTF_KEYUP;
       bufferarr.push(l.ref());
     }
-
-	var hWnd = winapi.goodies.getFocusedHandle();
-	winapi.goodies.SendMessageCallbackA(hWnd, constants.msg.WM_COPY, 0, 0,_=>{console.log("I've been called back?")})
-	console.log('copy?')
+    winapi.goodies.errorHandling(user32.SendInput, _ => _ !== bufferarr.length, "sendInput")(bufferarr.length, Buffer.concat(bufferarr), wintypes.INPUT.size);
+	bufferarr=[];
+	//var hWnd = winapi.goodies.getFocusedHandle();
+	//winapi.goodies.SendMessageCallbackA(hWnd, constants.msg.WM_COPY, 0, 0,_=>{console.log("I've been called back?")})
+	//console.log('copy?')
+	l(4);
     var win = new wintypes.INPUT();
     win.type = INPUT_KEYBOARD;
     win.DUMMYUNIONNAME.ki.wScan = 0;
@@ -266,7 +266,10 @@ function onhotkey(lParam, wParam) {
 
   }
 }
-
+function strToKeys(str){
+	str
+	
+}
 winapi.goodies.win32messageHandler.on("WM_HOTKEY", onhotkey);
 var repl=require('node:repl');
 var context=repl.start({prompt:'> ',useGlobal:true});
@@ -275,3 +278,18 @@ context.context["udps"]=udps
 context.context["commands"]=commands
 context.context["msg"]=msg
 context.context["mwin"]=mwin
+//context.context["w"]=require('./winapi.js');
+
+function l(i){
+	if(i>23)return;
+commands.setclipboard("1,Keystone"+String(i).padStart(2, '0'))
+	commands.paste().then(async _=>
+	{
+		var bufferarr=[];
+		bufferarr.push((new wintypes.INPUT({type:INPUT_KEYBOARD,DUMMYUNIONNAME:{ki:{wVk:constants.keys.VK_DOWN}}})).ref());
+		bufferarr.push((new wintypes.INPUT({type:INPUT_KEYBOARD,DUMMYUNIONNAME:{ki:{wVk:constants.keys.VK_DOWN,dwFlags:KEYEVENTF_KEYUP}}})).ref());
+		winapi.goodies.errorHandling(user32.SendInput, _ => _ !== bufferarr.length, "sendInput")(bufferarr.length, Buffer.concat(bufferarr), wintypes.INPUT.size);
+		setTimeout(_=>l(i+1),120);
+		
+	})
+}
