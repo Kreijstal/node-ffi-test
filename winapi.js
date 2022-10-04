@@ -3,80 +3,81 @@ var ref = require('ref-napi');
 var ArrayB =require('ref-array-di')(ref);
 var Struct = require('ref-struct-di')(ref);
 var Union = require('ref-union-di')(ref);
+var util=require("node:util");
 //Ok this is a mega long file where definitions and helper functions are all in one file together, we can split this file later after most of the bulkwork has been completed
 
 
 //Should this be optional or something?
 Buffer.prototype._toJSON=Buffer.prototype.toJSON
 Buffer.prototype.toJSON=function toJSON(){
-var obj=this._toJSON();
-var size=this?.type?.size;
-var indirection=this.type.indirection;
-var type=this?.type?.name;
-var address=this.address();
-return {...obj,size,indirection,type,address};
+	var obj=this._toJSON();
+	var size=this?.type?.size;
+	var indirection=this.type.indirection;
+	var type=this?.type?.name;
+	var address=this.address();
+	return {...obj,size,indirection,type,address};
 }
 const isObject = (input) => (
-  null !== input &&  typeof input === 'object' &&     Object.getPrototypeOf(input).isPrototypeOf(Object)
+	null !== input &&  typeof input === 'object' &&     Object.getPrototypeOf(input).isPrototypeOf(Object)
 )
 
- /**
+/**
  * @param   {object}    obj
  * @param   {string}    path
  * @param   {any}       value
  */
 
 const setByString = (obj, path, value) => {
-  const pList = Array.isArray(path) ? path : path.split('.');
-  const len = pList.length;
-  // changes second last key to {}
-  for (let i = 0; i < len - 1; i++) {
-    const elem = pList[i];
-    if (!obj[elem] || !isObject(obj[elem])) {
-      obj[elem] = {};
-    }
-    obj = obj[elem];
-  }
+	const pList = Array.isArray(path) ? path : path.split('.');
+	const len = pList.length;
+	// changes second last key to {}
+	for (let i = 0; i < len - 1; i++) {
+		const elem = pList[i];
+		if (!obj[elem] || !isObject(obj[elem])) {
+			obj[elem] = {};
+		}
+		obj = obj[elem];
+	}
 
-  // set value to second last key
-  obj[pList[len - 1]] = value;
+	// set value to second last key
+	obj[pList[len - 1]] = value;
 };
 function flattenObject(o, prefix = '', result = {}, keepNull = true) {
-  if (typeof o!=="object" || (keepNull && o==null)) {
-    result[prefix] = o;
-    return result;
-  }
-    for (let i in o) {
-      let pref = prefix;
-      if (Array.isArray(o)) {
-        pref = pref + `[${i}]`;
-      } else {
-        if (Object.keys(prefix).length === 0) {
-          pref = i;
-        } else {
-          pref = prefix + '.' + i;
-        }
-      }
-      flattenObject(o[i], pref, result, keepNull);
-    }
-    return result;
+	if (typeof o!=="object" || (keepNull && o==null)) {
+		result[prefix] = o;
+		return result;
+	}
+	for (let i in o) {
+		let pref = prefix;
+		if (Array.isArray(o)) {
+			pref = pref + `[${i}]`;
+		} else {
+			if (Object.keys(prefix).length === 0) {
+				pref = i;
+			} else {
+				pref = prefix + '.' + i;
+			}
+		}
+		flattenObject(o[i], pref, result, keepNull);
+	}
+	return result;
 }
 function StructType(){
 	function toJSONrec(){
-	return Object.entries(this._toJSON()).map(([k,v])=>[k,(v.toJSON)?v.toJSON():v])
+		return Object.entries(this._toJSON()).map(([k,v])=>[k,(v.toJSON)?v.toJSON():v])
 	}
 	var obj=Struct(...arguments);
 	obj.prototype._toJSON=obj.prototype.toJSON
 	obj.prototype.toJSON=toJSONrec;
 	obj.prototype.fromObject=function(d){
-//var l=this;
-Object.entries(flattenObject(d)).forEach(([k,v])=>setByString(this,k,v))
+		//var l=this;
+		Object.entries(flattenObject(d)).forEach(([k,v])=>setByString(this,k,v))
 	}
 	return obj;
 }
 function ArrayType(){
 	function toJSONrec(){
-	return this._toJSON().map(_=>_.toJSON?_.toJSON():_);
+		return this._toJSON().map(_=>_.toJSON?_.toJSON():_);
 	}
 	var obj=ArrayB(...arguments);
 	obj.prototype._toJSON=obj.prototype.toJSON
@@ -108,32 +109,32 @@ ref.types.WCString.set = function set (buf, offset, val) {
 //  https://msdn.microsoft.com/en-us/library/windows/desktop/aa383751%28v=vs.85%29.aspx
 //var wintypes = {};
 function longeSTring(a, b) {
-        return a.length > b.length ? a : b;
-    }
+	return a.length > b.length ? a : b;
+}
 //There are so many types that it's better to lazily dynamically generate them because otherwise the list would be just too long.
 //LP,P,NP,SP, this is overkill but why did microsoft just made so many names for the same thing?
 //we have to execute this many times because structs contain pointers already and they're referenced as pointers as well
 var wintypes=new Proxy({},{
-  get: function(target, name) {
-   var arr,lname;
-    if (name in target) return  target[name] ;
-	else if(name.toLowerCase() in ref.types)
-		return target[name]=ref.types[name.toLowerCase()]
-    else if((arr=name.match(/^[LNS]?P(C?(U?(N?(Z?(Z?(.*)|.*)|.*)|.*)|.*)|.*)/)?.slice(1).filter(_=>this.has(target,_)))?.length|0>0){
-		if((lname=arr.reduce(longeSTring))=="STR"){
-			return target[name]=ref.types.CString;
-		}else
-    return target[name]=ref.refType(this.get(target,lname));
+	get: function(target, name) {
+		var arr,lname;
+		if (name in target) return  target[name] ;
+		else if(name.toLowerCase() in ref.types)
+			return target[name]=ref.types[name.toLowerCase()]
+		else if((arr=name.match(/^[LNS]?P(C?(U?(N?(Z?(Z?(.*)|.*)|.*)|.*)|.*)|.*)/)?.slice(1).filter(_=>this.has(target,_)))?.length|0>0){
+			if((lname=arr.reduce(longeSTring))=="STR"){
+				return target[name]=ref.types.CString;
+			}else
+				return target[name]=ref.refType(this.get(target,lname));
+		}
+		else if(name[0]=="H") return target[name]=ref.types.uint64;
+	},
+	has: function(target, name) {
+		if (name in target||
+			name.toLowerCase() in ref.types||
+			name.match(/^[LNS]?P(C?(U?(N?(Z?(Z?(.*)|.*)|.*)|.*)|.*)|.*)/)?.slice(1).filter(_=>this.has(target,_))?.length|0>0||
+			name[0]=="H"||name=="STR") return true;
+		else return false;
 	}
-    else if(name[0]=="H") return target[name]=ref.types.uint64;
-  },
-has: function(target, name) {
-    if (name in target||
-	name.toLowerCase() in ref.types||
-	name.match(/^[LNS]?P(C?(U?(N?(Z?(Z?(.*)|.*)|.*)|.*)|.*)|.*)/)?.slice(1).filter(_=>this.has(target,_))?.length|0>0||
-	name[0]=="H"||name=="STR") return true;
-    else return false;
-  }
 });
 
 wintypes.WCHAR=wintypes.WSTR= ref.types.wchar_t;
@@ -359,37 +360,37 @@ wintypes.ICONINFO=StructType({
 });
 
 wintypes.RAWINPUTDEVICE=StructType({
-  usUsagePage:wintypes.USHORT,
-  usUsage:wintypes.USHORT,
-  dwFlags:wintypes.DWORD,
-  hwndTarget:wintypes.HWND
+	usUsagePage:wintypes.USHORT,
+	usUsage:wintypes.USHORT,
+	dwFlags:wintypes.DWORD,
+	hwndTarget:wintypes.HWND
 });
 wintypes.RAWHID=StructType({
-  dwSizeHid:wintypes.DWORD,
-  dwCount:wintypes.DWORD,
-  bRawData:ArrayType(wintypes.BYTE,1)
+	dwSizeHid:wintypes.DWORD,
+	dwCount:wintypes.DWORD,
+	bRawData:ArrayType(wintypes.BYTE,1)
 });
 wintypes.RAWKEYBOARD=StructType({
 	MakeCode:wintypes.USHORT, 
-    Flags:wintypes.USHORT,
-    Reserved:wintypes.USHORT,
-    VKey:wintypes.USHORT,
-    Message:wintypes.UINT,
-    ExtraInformation:wintypes.ULONG
+	Flags:wintypes.USHORT,
+	Reserved:wintypes.USHORT,
+	VKey:wintypes.USHORT,
+	Message:wintypes.UINT,
+	ExtraInformation:wintypes.ULONG
 });
 wintypes.RAWMOUSE=StructType({
-  usFlags:wintypes.USHORT,
-  DUMMYUNIONNAME:new Union({
-	  ulButtons:wintypes.ULONG,
-	  DUMMYSTRUCTNAME:StructType({
-	  usButtonFlags:wintypes.USHORT,
-	  usButtonData:wintypes.USHORT
-	  })
-  }),
-  ulRawButtons:wintypes.ULONG,
-  lLastX:wintypes.LONG,
-  lLastY:wintypes.LONG,
-  ulExtraInformation:wintypes.ULONG
+	usFlags:wintypes.USHORT,
+	DUMMYUNIONNAME:new Union({
+		ulButtons:wintypes.ULONG,
+		DUMMYSTRUCTNAME:StructType({
+			usButtonFlags:wintypes.USHORT,
+			usButtonData:wintypes.USHORT
+		})
+	}),
+	ulRawButtons:wintypes.ULONG,
+	lLastX:wintypes.LONG,
+	lLastY:wintypes.LONG,
+	ulExtraInformation:wintypes.ULONG
 })
 wintypes.RAWINPUTHEADER=StructType({
 	dwType:wintypes.DWORD,
@@ -398,24 +399,24 @@ wintypes.RAWINPUTHEADER=StructType({
 	wParam:wintypes.WPARAM
 })
 wintypes.RAWINPUT=StructType( {
-  header:wintypes.RAWINPUTHEADER ,
-  data:new Union({
-	  mouse:wintypes.RAWMOUSE,
-	  keyboard:wintypes.RAWKEYBOARD,
-	  hid:wintypes.RAWHID  
-  })
+	header:wintypes.RAWINPUTHEADER ,
+	data:new Union({
+		mouse:wintypes.RAWMOUSE,
+		keyboard:wintypes.RAWKEYBOARD,
+		hid:wintypes.RAWHID  
+	})
 })
 wintypes.RAWINPUTDEVICELIST=StructType({
-  hDevice:wintypes.HANDLE,
-  dwType:wintypes.DWORD
+	hDevice:wintypes.HANDLE,
+	dwType:wintypes.DWORD
 })
 
 //not strictly a windows type
 wintypes.va_list = StructType({
-   gp_offset : ref.types.uint,
-   fp_offset : ref.types.uint,
-   overflow_arg_area : wintypes.PVOID,
-   reg_save_area : wintypes.PVOID
+	gp_offset : ref.types.uint,
+	fp_offset : ref.types.uint,
+	overflow_arg_area : wintypes.PVOID,
+	reg_save_area : wintypes.PVOID
 });
 //enum
 ;["DPI_AWARENESS","DPI_HOSTING_BEGAVIOR","POINTER_FEEDBACK_MODE"].forEach(_=>{wintypes[_]=ref.types.int});
@@ -475,32 +476,32 @@ wintypes.WNDCLASSEXW=StructType({
 wintypes.KBDLLHOOKSTRUCT=StructType({
 	vkCode:wintypes.DWORD,
 	scanCode:wintypes.DWORD,
-    flags:wintypes.DWORD,
-    time:wintypes.DWORD,
-    dwExtraInfo:wintypes.ULONG_PTR
+	flags:wintypes.DWORD,
+	time:wintypes.DWORD,
+	dwExtraInfo:wintypes.ULONG_PTR
 })
 
 wintypes.MOUSEINPUT = StructType({
-  dx: wintypes.LONG,
-  dy: wintypes.LONG,
-  mouseData: wintypes.DWORD,
-  dwFlags: wintypes.DWORD,
-  time: wintypes.DWORD,
-  dwExtraInfo: wintypes.ULONG_PTR
+	dx: wintypes.LONG,
+	dy: wintypes.LONG,
+	mouseData: wintypes.DWORD,
+	dwFlags: wintypes.DWORD,
+	time: wintypes.DWORD,
+	dwExtraInfo: wintypes.ULONG_PTR
 })
 
 wintypes.KEYBDINPUT = StructType({
-  wVk: wintypes.WORD,
-  wScan: wintypes.WORD,
-  dwFlags: wintypes.DWORD,
-  time: wintypes.DWORD,
-  dwExtraInfo: wintypes.ULONG_PTR
+	wVk: wintypes.WORD,
+	wScan: wintypes.WORD,
+	dwFlags: wintypes.DWORD,
+	time: wintypes.DWORD,
+	dwExtraInfo: wintypes.ULONG_PTR
 })
 
 wintypes.HARDWAREINPUT = StructType({
-  uMsg: wintypes.DWORD,
-  wParamL: wintypes.WORD,
-  wParamH: wintypes.WORD
+	uMsg: wintypes.DWORD,
+	wParamL: wintypes.WORD,
+	wParamH: wintypes.WORD
 });
 
 wintypes.INPUT=StructType({type:wintypes.DWORD,DUMMYUNIONNAME:new Union({mi:wintypes.MOUSEINPUT,ki:wintypes.KEYBDINPUT,hi:wintypes.HARDWAREINPUT})})
@@ -517,19 +518,19 @@ winterface.gdi32= {
 //https://github.com/deskbtm/win32-ffi/blob/master/lib/cpp/kernel32/process_threads_api_fns.ts
 //https://github.com/waitingsong/node-win32-api/blob/HEAD/packages/win32-api/src/lib/kernel32/api.ts
 var kernel32extract=[
-{"params":[["hMem","in","HGLOBAL"]],"rtype":"LPVOID","type":"function","name":"GlobalLock"},
-{"params":[["hMem","in","HGLOBAL"]],"rtype":"BOOL","type":"function","name":"GlobalUnlock"},
-{"params":[["uFlags","in","UINT"],["dwBytes","in","SIZE_T"]],"rtype":"HGLOBAL","type":"function","name":"GlobalAlloc"},
-{"params":[["hMem","in","HGLOBAL"]],"rtype":"SIZE_T","type":"function","name":"GlobalSize"},
-{"params":[["hMem","in","HGLOBAL"]],"rtype":"HGLOBAL","type":"function","name":"GlobalFree"}
+	{"params":[["hMem","in","HGLOBAL"]],"rtype":"LPVOID","type":"function","name":"GlobalLock"},
+	{"params":[["hMem","in","HGLOBAL"]],"rtype":"BOOL","type":"function","name":"GlobalUnlock"},
+	{"params":[["uFlags","in","UINT"],["dwBytes","in","SIZE_T"]],"rtype":"HGLOBAL","type":"function","name":"GlobalAlloc"},
+	{"params":[["hMem","in","HGLOBAL"]],"rtype":"SIZE_T","type":"function","name":"GlobalSize"},
+	{"params":[["hMem","in","HGLOBAL"]],"rtype":"HGLOBAL","type":"function","name":"GlobalFree"}
 ]
 winterface.Kernel32={...kernel32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype],b.params.map(_=>wintypes[_[2]])];return a;},{}),
-  FormatMessageA: [wintypes.DWORD,  [wintypes.DWORD, wintypes.LPCVOID, wintypes.DWORD, wintypes.DWORD, wintypes.LPSTR, wintypes.DWORD, wintypes.va_list] ],
-  FormatMessageW: [wintypes.DWORD,  [wintypes.DWORD, wintypes.LPCVOID, wintypes.DWORD, wintypes.DWORD, wintypes.LPWSTR, wintypes.DWORD, wintypes.PVOID]  ],
-  FreeConsole: [wintypes.BOOL, [] ],
-  CreateThread: [wintypes.HANDLE, [wintypes.LPSECURITY_ATTRIBUTES, wintypes.SIZE_T, wintypes.LPTHREAD_START_ROUTINE, wintypes.LPVOID, wintypes.DWORD, wintypes.LPDWORD]],
-  CreateToolhelp32Snapshot: [wintypes.HANDLE,[wintypes.DWORD,wintypes.DWORD]],
-  // CreateProcessAsUserA: [BOOL, [HANDLE, LPCSTR, LPSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, LPVOID, LPCSTR, LPSTARTUPINFOA, LPPROCESS_INFORMATION]],
+	FormatMessageA: [wintypes.DWORD,  [wintypes.DWORD, wintypes.LPCVOID, wintypes.DWORD, wintypes.DWORD, wintypes.LPSTR, wintypes.DWORD, wintypes.va_list] ],
+	FormatMessageW: [wintypes.DWORD,  [wintypes.DWORD, wintypes.LPCVOID, wintypes.DWORD, wintypes.DWORD, wintypes.LPWSTR, wintypes.DWORD, wintypes.PVOID]  ],
+	FreeConsole: [wintypes.BOOL, [] ],
+	CreateThread: [wintypes.HANDLE, [wintypes.LPSECURITY_ATTRIBUTES, wintypes.SIZE_T, wintypes.LPTHREAD_START_ROUTINE, wintypes.LPVOID, wintypes.DWORD, wintypes.LPDWORD]],
+	CreateToolhelp32Snapshot: [wintypes.HANDLE,[wintypes.DWORD,wintypes.DWORD]],
+	// CreateProcessAsUserA: [BOOL, [HANDLE, LPCSTR, LPSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, LPVOID, LPCSTR, LPSTARTUPINFOA, LPPROCESS_INFORMATION]],
 	// CreateProcessAsUserW: [BOOL, [HANDLE, LPCWSTR, LPWSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, LPVOID, LPCWSTR, LPSTARTUPINFOW, LPPROCESS_INFORMATION]],
 	// CreateProcessW: [BOOL, [LPCWSTR, LPWSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, LPVOID, LPCWSTR, LPSTARTUPINFOW, LPPROCESS_INFORMATION]],
 	CreateRemoteThread:[wintypes.HANDLE,[wintypes.HANDLE,wintypes.LPSECURITY_ATTRIBUTES,wintypes.SIZE_T ,wintypes.LPTHREAD_START_ROUTINE,wintypes.LPVOID, wintypes.DWORD,wintypes.LPDWORD]],
@@ -563,7 +564,7 @@ winterface.Kernel32={...kernel32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rty
 	// GetStartupInfoW: [VOID, [LPSTARTUPINFOW]],
 	// GetSystemTimes: [BOOL, [PFILETIME, PFILETIME, PFILETIME]],
 	// GetThreadContext: [BOOL, [HANDLE, LPCONTEXT]],
-	 //GetThreadDescription: [HRESULT, [HANDLE, PWSTR]],
+	//GetThreadDescription: [HRESULT, [HANDLE, PWSTR]],
 	// GetThreadId: ["DWORD", [HANDLE]],
 	// GetThreadIdealProcessorEx: [BOOL, [HANDLE, PPROCESSOR_NUMBER]],
 	// GetThreadInformation: [BOOL, [HANDLE, THREAD_INFORMATION_CLASS, LPVOID, DWORD]],
@@ -572,13 +573,13 @@ winterface.Kernel32={...kernel32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rty
 	//GetThreadPriorityBoost: [BOOL, [HANDLE, PBOOL]],
 	// GetThreadTimes: [BOOL, [HANDLE, LPFILETIME, LPFILETIME, LPFILETIME, LPFILETIME]],
 	// InitializeProcThreadAttributeList: [BOOL, [LPPROC_THREAD_ATTRIBUTE_LIST, DWORD, DWORD, PSIZE_T]],
-//	 IsProcessCritical: [BOOL, [HANDLE, PBOOL]],
+	//	 IsProcessCritical: [BOOL, [HANDLE, PBOOL]],
 	// IsProcessorFeaturePresent: [BOOL, ["DWORD"]],
 	OpenProcess: [wintypes.HANDLE, [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD] ],
 	// OpenProcessToken: [BOOL, [HANDLE, "DWORD", PHANDLE]],
 	// OpenThread: [HANDLE, ["DWORD", BOOL, "DWORD"]],
 	// OpenThreadToken: [BOOL, [HANDLE, "DWORD", BOOL, PHANDLE]],
-	 //ProcessIdToSessionId: [BOOL, ["DWORD", "DWORD"]],
+	//ProcessIdToSessionId: [BOOL, ["DWORD", "DWORD"]],
 	// QueryProcessAffinityUpdateMode: [BOOL, [HANDLE, LPDWORD]],
 	// QueryProtectedPolicy: [BOOL, [LPCGUID, PULONG_PTR]],
 	// QueueUserAPC: [DWORD, [PAPCFUNC, HANDLE, ULONG_PTR]],
@@ -610,51 +611,51 @@ winterface.Kernel32={...kernel32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rty
 	TlsGetValue: [wintypes.LPVOID, [wintypes.DWORD]],
 	TlsSetValue: [wintypes.BOOL, [wintypes.DWORD, wintypes.LPVOID]],
 	// UpdateProcThreadAttribute: [BOOL, [LPPROC_THREAD_ATTRIBUTE_LIST, DWORD, DWORD_PTR, PVOID, SIZE_T, PVOID, PSIZE_T]],
- // GenerateConsoleCtrlEvent: [wintypes.BOOL, [wintypes.DWORD, wintypes.DWORD] ],
-  /** err code: https://msdn.microsoft.com/zh-cn/library/windows/desktop/ms681381(v=vs.85).aspx */
-  GetLastError: [wintypes.DWORD, [] ],
-  /** retrive value from buf by ret.ref().readUInt32() */
-  //GetModuleHandleW: [wintypes.HMODULE, [wintypes.LPCTSTR] ],
-  /** flags, optional LPCTSTR name, ref hModule */
-  //GetModuleHandleExW: [wintypes.BOOL, [wintypes.DWORD, wintypes.LPCTSTR, wintypes.HMODULE] ],
-  //GetProcessHeaps: [wintypes.DWORD, [wintypes.DWORD, wintypes.PHANDLE] ],
- // GetSystemTimes: [wintypes.BOOL, [wintypes.PFILETIME, wintypes.PFILETIME, wintypes.PFILETIME] ],
-  //HeapFree: [wintypes.BOOL, [wintypes.HANDLE, wintypes.DWORD, wintypes.LPVOID] ],
-  
-  //OutputDebugStringW: [wintypes.VOID, [wintypes.LPCTSTR] ],
-  
-  SetThreadExecutionState: [wintypes.INT, [wintypes.INT] ],
+	// GenerateConsoleCtrlEvent: [wintypes.BOOL, [wintypes.DWORD, wintypes.DWORD] ],
+	/** err code: https://msdn.microsoft.com/zh-cn/library/windows/desktop/ms681381(v=vs.85).aspx */
+	GetLastError: [wintypes.DWORD, [] ],
+	/** retrive value from buf by ret.ref().readUInt32() */
+	//GetModuleHandleW: [wintypes.HMODULE, [wintypes.LPCTSTR] ],
+	/** flags, optional LPCTSTR name, ref hModule */
+	//GetModuleHandleExW: [wintypes.BOOL, [wintypes.DWORD, wintypes.LPCTSTR, wintypes.HMODULE] ],
+	//GetProcessHeaps: [wintypes.DWORD, [wintypes.DWORD, wintypes.PHANDLE] ],
+	// GetSystemTimes: [wintypes.BOOL, [wintypes.PFILETIME, wintypes.PFILETIME, wintypes.PFILETIME] ],
+	//HeapFree: [wintypes.BOOL, [wintypes.HANDLE, wintypes.DWORD, wintypes.LPVOID] ],
+
+	//OutputDebugStringW: [wintypes.VOID, [wintypes.LPCTSTR] ],
+
+	SetThreadExecutionState: [wintypes.INT, [wintypes.INT] ],
 };
 var user32extract=[
-{"params":[["cInputs","in","UINT"],["pInputs","in","LPINPUT"],["cbSize","in","INT"]],"rtype":"UINT","type":"function","name":"SendInput"},
-{"params":[["hwnd","in","HWND"]],"rtype":"BOOL","type":"function","name":"AddClipboardFormatListener"},
-{"params":[["hWndRemove","in","HWND"],["hWndNewNext","in","HWND"]],"rtype":"BOOL","type":"function","name":"ChangeClipboardChain"},
-{"params":[],"rtype":"BOOL","type":"function","name":"CloseClipboard"},
-{"params":[],"rtype":"INT","type":"function","name":"CountClipboardFormats"},
-{"params":[],"rtype":"BOOL","type":"function","name":"EmptyClipboard"},
-{"params":[["format","in","UINT"]],"rtype":"UINT","type":"function","name":"EnumClipboardFormats"},
-{"params":[["uFormat","in","UINT"]],"rtype":"HANDLE","type":"function","name":"GetClipboardData"},
-{"params":[["format","in","UINT"],["lpszFormatName","out","LPSTR"],["cchMaxCount","in","INT"]],"rtype":"INT","type":"function","name":"GetClipboardFormatNameA"},
-{"params":[["format","in","UINT"],["lpszFormatName","out","LPWSTR"],["cchMaxCount","in","INT"]],"rtype":"INT","type":"function","name":"GetClipboardFormatNameW"},
-{"params":[],"rtype":"HWND","type":"function","name":"GetClipboardOwner"},
-{"params":[],"rtype":"DWORD","type":"function","name":"GetClipboardSequenceNumber"},
-{"params":[],"rtype":"HWND","type":"function","name":"GetClipboardViewer"},
-{"params":[],"rtype":"HWND","type":"function","name":"GetOpenClipboardWindow"},
-{"params":[["paFormatPriorityList","in","PUINT"],["cFormats","in","INT"]],"rtype":"INT","type":"function","name":"GetPriorityClipboardFormat"},
-{"params":[["lpuiFormats","out","PUINT"],["cFormats","in","UINT"],["pcFormatsOut","out","PUINT"]],"rtype":"BOOL","type":"function","name":"GetUpdatedClipboardFormats"},
-{"params":[["format","in","UINT"]],"rtype":"BOOL","type":"function","name":"IsClipboardFormatAvailable"},
-{"params":[["hWndNewOwner","in, optional","HWND"]],"rtype":"BOOL","type":"function","name":"OpenClipboard"},
-{"params":[["lpszFormat","in","LPCSTR"]],"rtype":"UINT","type":"function","name":"RegisterClipboardFormatA"},
-{"params":[["lpszFormat","in","LPCWSTR"]],"rtype":"UINT","type":"function","name":"RegisterClipboardFormatW"},
-{"params":[["hwnd","in","HWND"]],"rtype":"BOOL","type":"function","name":"RemoveClipboardFormatListener"},
-{"params":[["uFormat","in","UINT"],["hMem","in, optional","HANDLE"]],"rtype":"HANDLE","type":"function","name":"SetClipboardData"},
-{"params":[["hWndNewViewer","in","HWND"]],"rtype":"HWND","type":"function","name":"SetClipboardViewer"},
-{"params":[["idThread","in","DWORD"],["pgui","in, out","LPGUITHREADINFO"]],"rtype":"BOOL","type":"function","name":"GetGUIThreadInfo"},
-{"params":[["hWnd","in","HWND"],["Msg","in","UINT"],["wParam","in","WPARAM"],["lParam","in","LPARAM"],["lpResultCallBack","in","SENDASYNCPROC"],["dwData","in","ULONG_PTR"]],"rtype":"BOOL","type":"function","name":"SendMessageCallbackA"},
-{"params":[["hWnd","in","HWND"],["Msg","in","UINT"],["wParam","in","WPARAM"],["lParam","in","LPARAM"],["lpResultCallBack","in","SENDASYNCPROC"],["dwData","in","ULONG_PTR"]],"rtype":"BOOL","type":"function","name":"SendMessageCallbackW"}]
+	{"params":[["cInputs","in","UINT"],["pInputs","in","LPINPUT"],["cbSize","in","INT"]],"rtype":"UINT","type":"function","name":"SendInput"},
+	{"params":[["hwnd","in","HWND"]],"rtype":"BOOL","type":"function","name":"AddClipboardFormatListener"},
+	{"params":[["hWndRemove","in","HWND"],["hWndNewNext","in","HWND"]],"rtype":"BOOL","type":"function","name":"ChangeClipboardChain"},
+	{"params":[],"rtype":"BOOL","type":"function","name":"CloseClipboard"},
+	{"params":[],"rtype":"INT","type":"function","name":"CountClipboardFormats"},
+	{"params":[],"rtype":"BOOL","type":"function","name":"EmptyClipboard"},
+	{"params":[["format","in","UINT"]],"rtype":"UINT","type":"function","name":"EnumClipboardFormats"},
+	{"params":[["uFormat","in","UINT"]],"rtype":"HANDLE","type":"function","name":"GetClipboardData"},
+	{"params":[["format","in","UINT"],["lpszFormatName","out","LPSTR"],["cchMaxCount","in","INT"]],"rtype":"INT","type":"function","name":"GetClipboardFormatNameA"},
+	{"params":[["format","in","UINT"],["lpszFormatName","out","LPWSTR"],["cchMaxCount","in","INT"]],"rtype":"INT","type":"function","name":"GetClipboardFormatNameW"},
+	{"params":[],"rtype":"HWND","type":"function","name":"GetClipboardOwner"},
+	{"params":[],"rtype":"DWORD","type":"function","name":"GetClipboardSequenceNumber"},
+	{"params":[],"rtype":"HWND","type":"function","name":"GetClipboardViewer"},
+	{"params":[],"rtype":"HWND","type":"function","name":"GetOpenClipboardWindow"},
+	{"params":[["paFormatPriorityList","in","PUINT"],["cFormats","in","INT"]],"rtype":"INT","type":"function","name":"GetPriorityClipboardFormat"},
+	{"params":[["lpuiFormats","out","PUINT"],["cFormats","in","UINT"],["pcFormatsOut","out","PUINT"]],"rtype":"BOOL","type":"function","name":"GetUpdatedClipboardFormats"},
+	{"params":[["format","in","UINT"]],"rtype":"BOOL","type":"function","name":"IsClipboardFormatAvailable"},
+	{"params":[["hWndNewOwner","in, optional","HWND"]],"rtype":"BOOL","type":"function","name":"OpenClipboard"},
+	{"params":[["lpszFormat","in","LPCSTR"]],"rtype":"UINT","type":"function","name":"RegisterClipboardFormatA"},
+	{"params":[["lpszFormat","in","LPCWSTR"]],"rtype":"UINT","type":"function","name":"RegisterClipboardFormatW"},
+	{"params":[["hwnd","in","HWND"]],"rtype":"BOOL","type":"function","name":"RemoveClipboardFormatListener"},
+	{"params":[["uFormat","in","UINT"],["hMem","in, optional","HANDLE"]],"rtype":"HANDLE","type":"function","name":"SetClipboardData"},
+	{"params":[["hWndNewViewer","in","HWND"]],"rtype":"HWND","type":"function","name":"SetClipboardViewer"},
+	{"params":[["idThread","in","DWORD"],["pgui","in, out","LPGUITHREADINFO"]],"rtype":"BOOL","type":"function","name":"GetGUIThreadInfo"},
+	{"params":[["hWnd","in","HWND"],["Msg","in","UINT"],["wParam","in","WPARAM"],["lParam","in","LPARAM"],["lpResultCallBack","in","SENDASYNCPROC"],["dwData","in","ULONG_PTR"]],"rtype":"BOOL","type":"function","name":"SendMessageCallbackA"},
+	{"params":[["hWnd","in","HWND"],["Msg","in","UINT"],["wParam","in","WPARAM"],["lParam","in","LPARAM"],["lpResultCallBack","in","SENDASYNCPROC"],["dwData","in","ULONG_PTR"]],"rtype":"BOOL","type":"function","name":"SendMessageCallbackW"}]
 //console.log(user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype],b.params.map(_=>wintypes[_[2]])];return a;},{}))
 winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype],b.params.map(_=>wintypes[_[2]])];return a;},{}),  'MessageBoxA': [ 'int', [ wintypes.HWND, wintypes.LPCSTR, wintypes.LPCSTR, wintypes.UINT ] ],
-'RegisterClassA':[wintypes.ATOM,[wintypes.PWNDCLASSA]],
+	'RegisterClassA':[wintypes.ATOM,[wintypes.PWNDCLASSA]],
 	ActivateKeyboardLayout: [wintypes.HKL, [wintypes.HKL, wintypes.UINT]],
 	//dAddClipboardFormatListener: [wintypes.BOOL, [wintypes.HWND]],
 	AdjustWindowRect: [wintypes.BOOL, [wintypes.LPRECT, wintypes.DWORD, wintypes.BOOL]],
@@ -756,11 +757,11 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	//	CreateWindowA: [wintypes.VOID, [wintypes.LPCTSTR, wintypes.LPCTSTR, wintypes.DWORD, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID]],
 	CreateWindowExA: [wintypes.HWND, [wintypes.DWORD, wintypes.LPCSTR, wintypes.LPCSTR, wintypes.DWORD, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID]],
 	CreateWindowExW: [wintypes.HWND, [wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID]],/*
-	CreateWindowStationA: [wintypes.HWINSTA, [wintypes.LPCSTR, wintypes.DWORD, wintypes.ACCESS_MASK, wintypes.LPSECURITY_ATTRIBUTES]],
-	CreateWindowStationW: [wintypes.HWINSTA, [wintypes.LPCWSTR, wintypes.DWORD, wintypes.ACCESS_MASK, wintypes.LPSECURITY_ATTRIBUTES]],
-	CreateWindowW: [wintypes.VOID, [wintypes.LPCTSTR, wintypes.LPCTSTR, wintypes.DWORD, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID]],
-	DefDlgProcW: [wintypes.LRESULT, [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]],
-	DeferWindowPos: [wintypes.HDWP, [wintypes.HDWP, wintypes.HWND, wintypes.HWND, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.UINT]],*/
+			CreateWindowStationA: [wintypes.HWINSTA, [wintypes.LPCSTR, wintypes.DWORD, wintypes.ACCESS_MASK, wintypes.LPSECURITY_ATTRIBUTES]],
+			CreateWindowStationW: [wintypes.HWINSTA, [wintypes.LPCWSTR, wintypes.DWORD, wintypes.ACCESS_MASK, wintypes.LPSECURITY_ATTRIBUTES]],
+			CreateWindowW: [wintypes.VOID, [wintypes.LPCTSTR, wintypes.LPCTSTR, wintypes.DWORD, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID]],
+			DefDlgProcW: [wintypes.LRESULT, [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]],
+			DeferWindowPos: [wintypes.HDWP, [wintypes.HDWP, wintypes.HWND, wintypes.HWND, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.UINT]],*/
 	DefFrameProcA: [wintypes.LRESULT, [wintypes.HWND, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]],
 	DefFrameProcW: [wintypes.LRESULT, [wintypes.HWND, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]],
 	DefMDIChildProcA: [wintypes.LRESULT, [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]],
@@ -812,8 +813,8 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	//DrawStateW: [wintypes.BOOL, [wintypes.HDC, wintypes.HBRUSH, wintypes.DRAWSTATEPROC, wintypes.LPARAM, wintypes.WPARAM, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.UINT]],
 	//DrawText: [wintypes.INT, [wintypes.HDC, wintypes.LPCTSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT]],
 	DrawTextA: [wintypes.INT, [wintypes.HDC, wintypes.LPCSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT]],/*
-	DrawTextExA: [wintypes.INT, [wintypes.HDC, wintypes.LPSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT, wintypes.LPDRAWTEXTPARAMS]],
-	DrawTextExW: [wintypes.INT, [wintypes.HDC, wintypes.LPWSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT, wintypes.LPDRAWTEXTPARAMS]],*/
+			DrawTextExA: [wintypes.INT, [wintypes.HDC, wintypes.LPSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT, wintypes.LPDRAWTEXTPARAMS]],
+			DrawTextExW: [wintypes.INT, [wintypes.HDC, wintypes.LPWSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT, wintypes.LPDRAWTEXTPARAMS]],*/
 	DrawTextW: [wintypes.INT, [wintypes.HDC, wintypes.LPCWSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT]],
 	//dEmptyClipboard: [wintypes.BOOL, []],
 	EnableMenuItem: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.UINT]],
@@ -975,18 +976,18 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	GetPointerDeviceRects: [wintypes.BOOL, [wintypes.HANDLE, wintypes.RECT, wintypes.RECT]],
 	//GetPointerDevices: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_DEVICE_INFO]],
 	/*GetPointerFrameInfo: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_INFO]],
-	GetPointerFrameInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_INFO]],
-	GetPointerFramePenInfo: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_PEN_INFO]],
-	GetPointerFramePenInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_PEN_INFO]],
-	GetPointerFrameTouchInfo: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_TOUCH_INFO]],
-	GetPointerFrameTouchInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_TOUCH_INFO]],
-	GetPointerInfo: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_INFO]],
-	GetPointerInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_INFO]],
-	GetPointerInputTransform: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.INPUT_TRANSFORM]],
-	GetPointerPenInfo: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_PEN_INFO]],
-	GetPointerPenInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_PEN_INFO]],
-	GetPointerTouchInfo: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_TOUCH_INFO]],
-	GetPointerTouchInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_TOUCH_INFO]],*/
+			GetPointerFrameInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_INFO]],
+			GetPointerFramePenInfo: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_PEN_INFO]],
+			GetPointerFramePenInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_PEN_INFO]],
+			GetPointerFrameTouchInfo: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_TOUCH_INFO]],
+			GetPointerFrameTouchInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_TOUCH_INFO]],
+			GetPointerInfo: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_INFO]],
+			GetPointerInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_INFO]],
+			GetPointerInputTransform: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.INPUT_TRANSFORM]],
+			GetPointerPenInfo: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_PEN_INFO]],
+			GetPointerPenInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_PEN_INFO]],
+			GetPointerTouchInfo: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_TOUCH_INFO]],
+			GetPointerTouchInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_TOUCH_INFO]],*/
 	GetPointerType: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_INPUT_TYPE]],
 	//dGetPriorityClipboardFormat: [wintypes.INT, [wintypes.UINT, wintypes.INT]],
 	GetProcessDefaultLayout: [wintypes.BOOL, [wintypes.DWORD]],
@@ -1181,9 +1182,9 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	PrivateExtractIconsA: [wintypes.UINT, [wintypes.LPCSTR, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.HICON, wintypes.UINT, wintypes.UINT, wintypes.UINT]],
 	PrivateExtractIconsW: [wintypes.UINT, [wintypes.LPCWSTR, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.HICON, wintypes.UINT, wintypes.UINT, wintypes.UINT]],
 	PtInRect: [wintypes.BOOL, [wintypes.RECT, wintypes.POINT]],/*
-	QueryDisplayConfig: [wintypes.LONG, [wintypes.UINT32, wintypes.UINT32, wintypes.DISPLAYCONFIG_PATH_INFO, wintypes.UINT32, wintypes.DISPLAYCONFIG_MODE_INFO, wintypes.DISPLAYCONFIG_TOPOLOGY_ID]],
-	RealChildWindowFromPoint: [wintypes.HWND, [wintypes.HWND, wintypes.POINT]],
-	RealGetWindowClassW: [wintypes.UINT, [wintypes.HWND, wintypes.LPWSTR, wintypes.UINT]],*/
+			QueryDisplayConfig: [wintypes.LONG, [wintypes.UINT32, wintypes.UINT32, wintypes.DISPLAYCONFIG_PATH_INFO, wintypes.UINT32, wintypes.DISPLAYCONFIG_MODE_INFO, wintypes.DISPLAYCONFIG_TOPOLOGY_ID]],
+			RealChildWindowFromPoint: [wintypes.HWND, [wintypes.HWND, wintypes.POINT]],
+			RealGetWindowClassW: [wintypes.UINT, [wintypes.HWND, wintypes.LPWSTR, wintypes.UINT]],*/
 	RedrawWindow: [wintypes.BOOL, [wintypes.HWND, wintypes.RECT, wintypes.HRGN, wintypes.UINT]],
 	RegisterClassExA: [wintypes.ATOM, [wintypes.PWNDCLASSEXA]],
 	RegisterClassExW: [wintypes.ATOM, [wintypes.PWNDCLASSEXW]],
@@ -1191,12 +1192,12 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	//dRegisterClipboardFormatA: [wintypes.UINT, [wintypes.LPCSTR]],
 	//dRegisterClipboardFormatW: [wintypes.UINT, [wintypes.LPCWSTR]],
 	/*	RegisterDeviceNotificationA: [wintypes.HDEVNOTIFY, [wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD]],
-	RegisterDeviceNotificationW: [wintypes.HDEVNOTIFY, [wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD]],*/
+			RegisterDeviceNotificationW: [wintypes.HDEVNOTIFY, [wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD]],*/
 	RegisterHotKey: [wintypes.BOOL, [wintypes.HWND, wintypes.INT, wintypes.UINT, wintypes.UINT]],
 	RegisterPointerDeviceNotifications: [wintypes.BOOL, [wintypes.HWND, wintypes.BOOL]],/*
-	RegisterPointerInputTarget: [wintypes.BOOL, [wintypes.HWND, wintypes.POINTER_INPUT_TYPE]],
-	RegisterPointerInputTargetEx: [wintypes.BOOL, [wintypes.HWND, wintypes.POINTER_INPUT_TYPE, wintypes.BOOL]],
-	RegisterPowerSettingNotification: [wintypes.HPOWERNOTIFY, [wintypes.HANDLE, wintypes.LPCGUID, wintypes.DWORD]],*/
+			RegisterPointerInputTarget: [wintypes.BOOL, [wintypes.HWND, wintypes.POINTER_INPUT_TYPE]],
+			RegisterPointerInputTargetEx: [wintypes.BOOL, [wintypes.HWND, wintypes.POINTER_INPUT_TYPE, wintypes.BOOL]],
+			RegisterPowerSettingNotification: [wintypes.HPOWERNOTIFY, [wintypes.HANDLE, wintypes.LPCGUID, wintypes.DWORD]],*/
 	RegisterRawInputDevices: [wintypes.BOOL, [wintypes.PCRAWINPUTDEVICE, wintypes.UINT, wintypes.UINT]],
 	RegisterShellHookWindow: [wintypes.BOOL, [wintypes.HWND]],
 	RegisterSuspendResumeNotification: [wintypes.HPOWERNOTIFY, [wintypes.HANDLE, wintypes.DWORD]],
@@ -1327,9 +1328,9 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	//	TOUCH_COORD_TO_PIXEL: [wintypes.VOID, []],
 	ToUnicode: [wintypes.INT, [wintypes.UINT, wintypes.UINT, wintypes.BYTE, wintypes.LPWSTR, wintypes.INT, wintypes.UINT]],
 	ToUnicodeEx: [wintypes.INT, [wintypes.UINT, wintypes.UINT, wintypes.BYTE, wintypes.LPWSTR, wintypes.INT, wintypes.UINT, wintypes.HKL]],/*
-	TrackMouseEvent: [wintypes.BOOL, [wintypes.LPTRACKMOUSEEVENT]],
-	TrackPopupMenu: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.HWND, wintypes.RECT]],
-	TrackPopupMenuEx: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.INT, wintypes.INT, wintypes.HWND, wintypes.LPTPMPARAMS]],*/
+			TrackMouseEvent: [wintypes.BOOL, [wintypes.LPTRACKMOUSEEVENT]],
+			TrackPopupMenu: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.HWND, wintypes.RECT]],
+			TrackPopupMenuEx: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.INT, wintypes.INT, wintypes.HWND, wintypes.LPTPMPARAMS]],*/
 	TranslateAcceleratorA: [wintypes.INT, [wintypes.HWND, wintypes.HACCEL, wintypes.LPMSG]],
 	TranslateAcceleratorW: [wintypes.INT, [wintypes.HWND, wintypes.HACCEL, wintypes.LPMSG]],
 	TranslateMDISysAccel: [wintypes.BOOL, [wintypes.HWND, wintypes.LPMSG]],
@@ -1369,15 +1370,15 @@ function loadFunctions(pathofdll,functions){
 	var objtosave={}
 	var dllmem=ffi.DynamicLibrary(pathofdll, ffi.DynamicLibrary.FLAGS.RTLD_LAZY);
 	Object.entries(functions).forEach(([fname,[rtype,args]])=>{
-	try{
-		objtosave[fname]=ffi.ForeignFunction(dllmem.get(fname),rtype,args);
-	}
-	catch(x){
-		console.log(fname+" couldn't be loaded :(")
-	}
-	
-});
-return objtosave;
+		try{
+			objtosave[fname]=ffi.ForeignFunction(dllmem.get(fname),rtype,args);
+		}
+		catch(x){
+			console.log(fname+" couldn't be loaded :(")
+		}
+
+	});
+	return objtosave;
 }
 var current=loadFunctions("User32.dll",winterface.User32);
 //console.log('current',current)
@@ -1392,59 +1393,59 @@ const MB_ICONEXCLAMATION=0x00000030;
 const MB_ICONHAND = 0x00000010;
 const MB_ICONASTERISK=  0x00000040;
 constants.msgbox={
- MB_OK : 0x00000000,
- MB_OKCANCEL : 0x00000001,
- MB_ABORTRETRYIGNORE : 0x00000002,
- MB_YESNOCANCEL : 0x00000003,
- MB_YESNO : 0x00000004,
- MB_RETRYCANCEL : 0x00000005,
-// #if(WINVER >= 0x0500)
- MB_CANCELTRYCONTINUE : 0x00000006,
-// #endif /* WINVER >= 0x0500 */
- MB_ICONHAND,
- MB_ICONQUESTION : 0x00000020,
- MB_ICONEXCLAMATION,
- MB_ICONASTERISK,
-// #if(WINVER >= 0x0400)
- MB_USERICON : 0x00000080,
- MB_ICONWARNING : MB_ICONEXCLAMATION,
- MB_ICONERROR : MB_ICONHAND,
-// #endif /* WINVER >= 0x0400 */
- MB_ICONINFORMATION : MB_ICONASTERISK,
- MB_ICONSTOP : MB_ICONHAND,
- MB_DEFBUTTON1 : 0x00000000,
- MB_DEFBUTTON2 : 0x00000100,
- MB_DEFBUTTON3 : 0x00000200,
-// #if(WINVER >= 0x0400)
- MB_DEFBUTTON4 : 0x00000300,
-// #endif /* WINVER >= 0x0400 */
- MB_APPLMODAL : 0x00000000,
- MB_SYSTEMMODAL : 0x00001000,
- MB_TASKMODAL : 0x00002000,
-// #if(WINVER >= 0x0400)
- MB_HELP : 0x00004000, // Help Butto,
-// #endif /* WINVER >= 0x0400 */
- MB_NOFOCUS : 0x00008000,
- MB_SETFOREGROUND : 0x00010000,
- MB_DEFAULT_DESKTOP_ONLY : 0x00020000,
-// #if(WINVER >= 0x0400)
- MB_TOPMOST : 0x00040000,
- MB_RIGHT : 0x00080000,
- MB_RTLREADING : 0x00100000,
-// #endif /* WINVER >= 0x0400 */
-// #ifdef _WIN32_WINNT
-// #if(_WIN32_WINNT >= 0x0400)
-//  MB_SERVICE_NOTIFICATION : 0x00200000,
-// #else
-//  MB_SERVICE_NOTIFICATION : 0x00040000,
-// #endif
- MB_SERVICE_NOTIFICATION_NT3X : 0x00040000,
-// #endif
- MB_TYPEMASK : 0x0000000F,
- MB_ICONMASK : 0x000000F0,
- MB_DEFMASK : 0x00000F00,
- MB_MODEMASK : 0x00003000,
- MB_MISCMASK : 0x0000C000
+	MB_OK : 0x00000000,
+	MB_OKCANCEL : 0x00000001,
+	MB_ABORTRETRYIGNORE : 0x00000002,
+	MB_YESNOCANCEL : 0x00000003,
+	MB_YESNO : 0x00000004,
+	MB_RETRYCANCEL : 0x00000005,
+	// #if(WINVER >= 0x0500)
+	MB_CANCELTRYCONTINUE : 0x00000006,
+	// #endif /* WINVER >= 0x0500 */
+	MB_ICONHAND,
+	MB_ICONQUESTION : 0x00000020,
+	MB_ICONEXCLAMATION,
+	MB_ICONASTERISK,
+	// #if(WINVER >= 0x0400)
+	MB_USERICON : 0x00000080,
+	MB_ICONWARNING : MB_ICONEXCLAMATION,
+	MB_ICONERROR : MB_ICONHAND,
+	// #endif /* WINVER >= 0x0400 */
+	MB_ICONINFORMATION : MB_ICONASTERISK,
+	MB_ICONSTOP : MB_ICONHAND,
+	MB_DEFBUTTON1 : 0x00000000,
+	MB_DEFBUTTON2 : 0x00000100,
+	MB_DEFBUTTON3 : 0x00000200,
+	// #if(WINVER >= 0x0400)
+	MB_DEFBUTTON4 : 0x00000300,
+	// #endif /* WINVER >= 0x0400 */
+	MB_APPLMODAL : 0x00000000,
+	MB_SYSTEMMODAL : 0x00001000,
+	MB_TASKMODAL : 0x00002000,
+	// #if(WINVER >= 0x0400)
+	MB_HELP : 0x00004000, // Help Butto,
+	// #endif /* WINVER >= 0x0400 */
+	MB_NOFOCUS : 0x00008000,
+	MB_SETFOREGROUND : 0x00010000,
+	MB_DEFAULT_DESKTOP_ONLY : 0x00020000,
+	// #if(WINVER >= 0x0400)
+	MB_TOPMOST : 0x00040000,
+	MB_RIGHT : 0x00080000,
+	MB_RTLREADING : 0x00100000,
+	// #endif /* WINVER >= 0x0400 */
+	// #ifdef _WIN32_WINNT
+	// #if(_WIN32_WINNT >= 0x0400)
+	//  MB_SERVICE_NOTIFICATION : 0x00200000,
+	// #else
+	//  MB_SERVICE_NOTIFICATION : 0x00040000,
+	// #endif
+	MB_SERVICE_NOTIFICATION_NT3X : 0x00040000,
+	// #endif
+	MB_TYPEMASK : 0x0000000F,
+	MB_ICONMASK : 0x000000F0,
+	MB_DEFMASK : 0x00000F00,
+	MB_MODEMASK : 0x00003000,
+	MB_MISCMASK : 0x0000C000
 };
 
 
@@ -1457,24 +1458,24 @@ var clipboardFormats={
 	CF_DSPENHMETAFILE:0x8e,
 	CF_DSPMETAFILEPICT:0x0083,
 	CF_DSPTEXT:0x0081,
-    CF_ENHMETAFILE:14,
-    CF_GDIOBJFIRST:0x0300,
-    CF_GDIOBJLAST:0x03FF,
-    CF_HDROP:15,
-    CF_LOCALE:16,
-    CF_METAFILEPICT:3,
-    CF_OEMTEXT:7,
-    CF_OWNERDISPLAY:0x0080,
-    CF_PALETTE:9,
-    CF_PENDATA:10,
-    CF_PRIVATEFIRST:0x0200,
-    CF_PRIVATELAST:0x02FF,
-    CF_RIFF:11,
-    CF_SYLK:4,
-    CF_TEXT:1,
-    CF_TIFF:6,
-    CF_UNICODETEXT:13,
-    CF_WAVE:12
+	CF_ENHMETAFILE:14,
+	CF_GDIOBJFIRST:0x0300,
+	CF_GDIOBJLAST:0x03FF,
+	CF_HDROP:15,
+	CF_LOCALE:16,
+	CF_METAFILEPICT:3,
+	CF_OEMTEXT:7,
+	CF_OWNERDISPLAY:0x0080,
+	CF_PALETTE:9,
+	CF_PENDATA:10,
+	CF_PRIVATEFIRST:0x0200,
+	CF_PRIVATELAST:0x02FF,
+	CF_RIFF:11,
+	CF_SYLK:4,
+	CF_TEXT:1,
+	CF_TIFF:6,
+	CF_UNICODETEXT:13,
+	CF_WAVE:12
 }
 constants.clipboardFormats={...clipboardFormats,...Object.fromEntries(Object.entries(clipboardFormats).map(([k,v])=>[v,k]))};
 constants.msg=(o=>Object.entries(o).reduce((r, [k, v]) => (r[v]=+k, r), o))({
@@ -1695,188 +1696,188 @@ constants.msg=(o=>Object.entries(o).reduce((r, [k, v]) => (r[v]=+k, r), o))({
 	0x8000:"WM_APP",
 });
 var key={
-    VK_LBUTTON       : 0x01,
-    VK_RBUTTON       : 0x02,
-    VK_CANCEL    : 0x03,
-    VK_MBUTTON       : 0x04,
-    //
-    VK_XBUTTON1      : 0x05,
-    VK_XBUTTON2      : 0x06,
-    //
-    VK_BACK      : 0x08,
-    VK_TAB       : 0x09,
-    //
-    VK_CLEAR     : 0x0C,
-    VK_RETURN    : 0x0D,
-    //
-    VK_SHIFT     : 0x10,
-    VK_CONTROL       : 0x11,
-    VK_MENU      : 0x12,
-    VK_PAUSE     : 0x13,
-    VK_CAPITAL       : 0x14,
-    //
-    VK_KANA      : 0x15,
-    VK_JUNJA     : 0x17,
-    VK_FINAL     : 0x18,
-    VK_HANJA     : 0x19,
-    VK_KANJI     : 0x19,
-    //
-    VK_ESCAPE    : 0x1B,
-    //
-    VK_CONVERT       : 0x1C,
-    VK_NONCONVERT    : 0x1D,
-    VK_ACCEPT    : 0x1E,
-    VK_MODECHANGE    : 0x1F,
-    //
-    VK_SPACE     : 0x20,
-    VK_PRIOR     : 0x21,
-    VK_NEXT      : 0x22,
-    VK_END       : 0x23,
-    VK_HOME      : 0x24,
-    VK_LEFT      : 0x25,
-    VK_UP        : 0x26,
-    VK_RIGHT     : 0x27,
-    VK_DOWN      : 0x28,
-    VK_SELECT    : 0x29,
-    VK_PRINT     : 0x2A,
-    VK_EXECUTE       : 0x2B,
-    VK_SNAPSHOT      : 0x2C,
-    VK_INSERT    : 0x2D,
-    VK_DELETE    : 0x2E,
-    VK_HELP      : 0x2F,
-    //
-    VK_LWIN      : 0x5B,
-    VK_RWIN      : 0x5C,
-    VK_APPS      : 0x5D,
-    //
-    VK_SLEEP     : 0x5F,
-    //
-    VK_NUMPAD0       : 0x60,
-    VK_NUMPAD1       : 0x61,
-    VK_NUMPAD2       : 0x62,
-    VK_NUMPAD3       : 0x63,
-    VK_NUMPAD4       : 0x64,
-    VK_NUMPAD5       : 0x65,
-    VK_NUMPAD6       : 0x66,
-    VK_NUMPAD7       : 0x67,
-    VK_NUMPAD8       : 0x68,
-    VK_NUMPAD9       : 0x69,
-    VK_MULTIPLY      : 0x6A,
-    VK_ADD       : 0x6B,
-    VK_SEPARATOR     : 0x6C,
-    VK_SUBTRACT      : 0x6D,
-    VK_DECIMAL       : 0x6E,
-    VK_DIVIDE    : 0x6F,
-    VK_F1        : 0x70,
-    VK_F2        : 0x71,
-    VK_F3        : 0x72,
-    VK_F4        : 0x73,
-    VK_F5        : 0x74,
-    VK_F6        : 0x75,
-    VK_F7        : 0x76,
-    VK_F8        : 0x77,
-    VK_F9        : 0x78,
-    VK_F10       : 0x79,
-    VK_F11       : 0x7A,
-    VK_F12       : 0x7B,
-    VK_F13       : 0x7C,
-    VK_F14       : 0x7D,
-    VK_F15       : 0x7E,
-    VK_F16       : 0x7F,
-    VK_F17       : 0x80,
-    VK_F18       : 0x81,
-    VK_F19       : 0x82,
-    VK_F20       : 0x83,
-    VK_F21       : 0x84,
-    VK_F22       : 0x85,
-    VK_F23       : 0x86,
-    VK_F24       : 0x87,
-    //
-    VK_NUMLOCK       : 0x90,
-    VK_SCROLL    : 0x91,
-    //
-    VK_OEM_NEC_EQUAL : 0x92,   // ':' key on numpad
-    //
-    VK_OEM_FJ_MASSHOU: 0x93,   // 'Unregister word' key
-    VK_OEM_FJ_TOUROKU: 0x94,   // 'Register word' key
-    VK_OEM_FJ_LOYA   : 0x95,   // 'Left OYAYUBI' key
-    VK_OEM_FJ_ROYA   : 0x96,   // 'Right OYAYUBI' key
-    //
-    VK_LSHIFT    : 0xA0,
-    VK_RSHIFT    : 0xA1,
-    VK_LCONTROL      : 0xA2,
-    VK_RCONTROL      : 0xA3,
-    VK_LMENU     : 0xA4,
-    VK_RMENU     : 0xA5,
-    //
-    VK_BROWSER_BACK       : 0xA6,
-    VK_BROWSER_FORWARD    : 0xA7,
-    VK_BROWSER_REFRESH    : 0xA8,
-    VK_BROWSER_STOP       : 0xA9,
-    VK_BROWSER_SEARCH     : 0xAA,
-    VK_BROWSER_FAVORITES  : 0xAB,
-    VK_BROWSER_HOME       : 0xAC,
-    //
-    VK_VOLUME_MUTE    : 0xAD,
-    VK_VOLUME_DOWN    : 0xAE,
-    VK_VOLUME_UP      : 0xAF,
-    VK_MEDIA_NEXT_TRACK   : 0xB0,
-    VK_MEDIA_PREV_TRACK   : 0xB1,
-    VK_MEDIA_STOP     : 0xB2,
-    VK_MEDIA_PLAY_PAUSE   : 0xB3,
-    VK_LAUNCH_MAIL    : 0xB4,
-    VK_LAUNCH_MEDIA_SELECT: 0xB5,
-    VK_LAUNCH_APP1    : 0xB6,
-    VK_LAUNCH_APP2    : 0xB7,
-    //
-    VK_OEM_1     : 0xBA,   // ';:' for US
-    VK_OEM_PLUS      : 0xBB,   // '+' any country
-    VK_OEM_COMMA     : 0xBC,   // ',' any country
-    VK_OEM_MINUS     : 0xBD,   // '-' any country
-    VK_OEM_PERIOD    : 0xBE,   // '.' any country
-    VK_OEM_2     : 0xBF,   // '/?' for US
-    VK_OEM_3     : 0xC0,   // '`~' for US
-    //
-    VK_OEM_4     : 0xDB,  //  '[{' for US
-    VK_OEM_5     : 0xDC,  //  '\|' for US
-    VK_OEM_6     : 0xDD,  //  ']}' for US
-    VK_OEM_7     : 0xDE,  //  ''"' for US
-    VK_OEM_8     : 0xDF,
-    //
-    VK_OEM_AX    : 0xE1,  //  'AX' key on Japanese AX kbd
-    VK_OEM_102       : 0xE2,  //  "<>" or "\|" on RT 102-key kbd.
-    VK_ICO_HELP      : 0xE3,  //  Help key on ICO
-    VK_ICO_00    : 0xE4,  //  00 key on ICO
-    //
-    VK_PROCESSKEY    : 0xE5,
-    //
-    VK_ICO_CLEAR     : 0xE6,
-    //
-    VK_PACKET    : 0xE7,
-    //
-    VK_OEM_RESET     : 0xE9,
-    VK_OEM_JUMP      : 0xEA,
-    VK_OEM_PA1       : 0xEB,
-    VK_OEM_PA2       : 0xEC,
-    VK_OEM_PA3       : 0xED,
-    VK_OEM_WSCTRL    : 0xEE,
-    VK_OEM_CUSEL     : 0xEF,
-    VK_OEM_ATTN      : 0xF0,
-    VK_OEM_FINISH    : 0xF1,
-    VK_OEM_COPY      : 0xF2,
-    VK_OEM_AUTO      : 0xF3,
-    VK_OEM_ENLW      : 0xF4,
-    VK_OEM_BACKTAB   : 0xF5,
-    //
-    VK_ATTN      : 0xF6,
-    VK_CRSEL     : 0xF7,
-    VK_EXSEL     : 0xF8,
-    VK_EREOF     : 0xF9,
-    VK_PLAY      : 0xFA,
-    VK_ZOOM      : 0xFB,
-    VK_NONAME    : 0xFC,
-    VK_PA1       : 0xFD,
-    VK_OEM_CLEAR     : 0xFE
+	VK_LBUTTON       : 0x01,
+	VK_RBUTTON       : 0x02,
+	VK_CANCEL    : 0x03,
+	VK_MBUTTON       : 0x04,
+	//
+	VK_XBUTTON1      : 0x05,
+	VK_XBUTTON2      : 0x06,
+	//
+	VK_BACK      : 0x08,
+	VK_TAB       : 0x09,
+	//
+	VK_CLEAR     : 0x0C,
+	VK_RETURN    : 0x0D,
+	//
+	VK_SHIFT     : 0x10,
+	VK_CONTROL       : 0x11,
+	VK_MENU      : 0x12,
+	VK_PAUSE     : 0x13,
+	VK_CAPITAL       : 0x14,
+	//
+	VK_KANA      : 0x15,
+	VK_JUNJA     : 0x17,
+	VK_FINAL     : 0x18,
+	VK_HANJA     : 0x19,
+	VK_KANJI     : 0x19,
+	//
+	VK_ESCAPE    : 0x1B,
+	//
+	VK_CONVERT       : 0x1C,
+	VK_NONCONVERT    : 0x1D,
+	VK_ACCEPT    : 0x1E,
+	VK_MODECHANGE    : 0x1F,
+	//
+	VK_SPACE     : 0x20,
+	VK_PRIOR     : 0x21,
+	VK_NEXT      : 0x22,
+	VK_END       : 0x23,
+	VK_HOME      : 0x24,
+	VK_LEFT      : 0x25,
+	VK_UP        : 0x26,
+	VK_RIGHT     : 0x27,
+	VK_DOWN      : 0x28,
+	VK_SELECT    : 0x29,
+	VK_PRINT     : 0x2A,
+	VK_EXECUTE       : 0x2B,
+	VK_SNAPSHOT      : 0x2C,
+	VK_INSERT    : 0x2D,
+	VK_DELETE    : 0x2E,
+	VK_HELP      : 0x2F,
+	//
+	VK_LWIN      : 0x5B,
+	VK_RWIN      : 0x5C,
+	VK_APPS      : 0x5D,
+	//
+	VK_SLEEP     : 0x5F,
+	//
+	VK_NUMPAD0       : 0x60,
+	VK_NUMPAD1       : 0x61,
+	VK_NUMPAD2       : 0x62,
+	VK_NUMPAD3       : 0x63,
+	VK_NUMPAD4       : 0x64,
+	VK_NUMPAD5       : 0x65,
+	VK_NUMPAD6       : 0x66,
+	VK_NUMPAD7       : 0x67,
+	VK_NUMPAD8       : 0x68,
+	VK_NUMPAD9       : 0x69,
+	VK_MULTIPLY      : 0x6A,
+	VK_ADD       : 0x6B,
+	VK_SEPARATOR     : 0x6C,
+	VK_SUBTRACT      : 0x6D,
+	VK_DECIMAL       : 0x6E,
+	VK_DIVIDE    : 0x6F,
+	VK_F1        : 0x70,
+	VK_F2        : 0x71,
+	VK_F3        : 0x72,
+	VK_F4        : 0x73,
+	VK_F5        : 0x74,
+	VK_F6        : 0x75,
+	VK_F7        : 0x76,
+	VK_F8        : 0x77,
+	VK_F9        : 0x78,
+	VK_F10       : 0x79,
+	VK_F11       : 0x7A,
+	VK_F12       : 0x7B,
+	VK_F13       : 0x7C,
+	VK_F14       : 0x7D,
+	VK_F15       : 0x7E,
+	VK_F16       : 0x7F,
+	VK_F17       : 0x80,
+	VK_F18       : 0x81,
+	VK_F19       : 0x82,
+	VK_F20       : 0x83,
+	VK_F21       : 0x84,
+	VK_F22       : 0x85,
+	VK_F23       : 0x86,
+	VK_F24       : 0x87,
+	//
+	VK_NUMLOCK       : 0x90,
+	VK_SCROLL    : 0x91,
+	//
+	VK_OEM_NEC_EQUAL : 0x92,   // ':' key on numpad
+	//
+	VK_OEM_FJ_MASSHOU: 0x93,   // 'Unregister word' key
+	VK_OEM_FJ_TOUROKU: 0x94,   // 'Register word' key
+	VK_OEM_FJ_LOYA   : 0x95,   // 'Left OYAYUBI' key
+	VK_OEM_FJ_ROYA   : 0x96,   // 'Right OYAYUBI' key
+	//
+	VK_LSHIFT    : 0xA0,
+	VK_RSHIFT    : 0xA1,
+	VK_LCONTROL      : 0xA2,
+	VK_RCONTROL      : 0xA3,
+	VK_LMENU     : 0xA4,
+	VK_RMENU     : 0xA5,
+	//
+	VK_BROWSER_BACK       : 0xA6,
+	VK_BROWSER_FORWARD    : 0xA7,
+	VK_BROWSER_REFRESH    : 0xA8,
+	VK_BROWSER_STOP       : 0xA9,
+	VK_BROWSER_SEARCH     : 0xAA,
+	VK_BROWSER_FAVORITES  : 0xAB,
+	VK_BROWSER_HOME       : 0xAC,
+	//
+	VK_VOLUME_MUTE    : 0xAD,
+	VK_VOLUME_DOWN    : 0xAE,
+	VK_VOLUME_UP      : 0xAF,
+	VK_MEDIA_NEXT_TRACK   : 0xB0,
+	VK_MEDIA_PREV_TRACK   : 0xB1,
+	VK_MEDIA_STOP     : 0xB2,
+	VK_MEDIA_PLAY_PAUSE   : 0xB3,
+	VK_LAUNCH_MAIL    : 0xB4,
+	VK_LAUNCH_MEDIA_SELECT: 0xB5,
+	VK_LAUNCH_APP1    : 0xB6,
+	VK_LAUNCH_APP2    : 0xB7,
+	//
+	VK_OEM_1     : 0xBA,   // ';:' for US
+	VK_OEM_PLUS      : 0xBB,   // '+' any country
+	VK_OEM_COMMA     : 0xBC,   // ',' any country
+	VK_OEM_MINUS     : 0xBD,   // '-' any country
+	VK_OEM_PERIOD    : 0xBE,   // '.' any country
+	VK_OEM_2     : 0xBF,   // '/?' for US
+	VK_OEM_3     : 0xC0,   // '`~' for US
+	//
+	VK_OEM_4     : 0xDB,  //  '[{' for US
+	VK_OEM_5     : 0xDC,  //  '\|' for US
+	VK_OEM_6     : 0xDD,  //  ']}' for US
+	VK_OEM_7     : 0xDE,  //  ''"' for US
+	VK_OEM_8     : 0xDF,
+	//
+	VK_OEM_AX    : 0xE1,  //  'AX' key on Japanese AX kbd
+	VK_OEM_102       : 0xE2,  //  "<>" or "\|" on RT 102-key kbd.
+	VK_ICO_HELP      : 0xE3,  //  Help key on ICO
+	VK_ICO_00    : 0xE4,  //  00 key on ICO
+	//
+	VK_PROCESSKEY    : 0xE5,
+	//
+	VK_ICO_CLEAR     : 0xE6,
+	//
+	VK_PACKET    : 0xE7,
+	//
+	VK_OEM_RESET     : 0xE9,
+	VK_OEM_JUMP      : 0xEA,
+	VK_OEM_PA1       : 0xEB,
+	VK_OEM_PA2       : 0xEC,
+	VK_OEM_PA3       : 0xED,
+	VK_OEM_WSCTRL    : 0xEE,
+	VK_OEM_CUSEL     : 0xEF,
+	VK_OEM_ATTN      : 0xF0,
+	VK_OEM_FINISH    : 0xF1,
+	VK_OEM_COPY      : 0xF2,
+	VK_OEM_AUTO      : 0xF3,
+	VK_OEM_ENLW      : 0xF4,
+	VK_OEM_BACKTAB   : 0xF5,
+	//
+	VK_ATTN      : 0xF6,
+	VK_CRSEL     : 0xF7,
+	VK_EXSEL     : 0xF8,
+	VK_EREOF     : 0xF9,
+	VK_PLAY      : 0xFA,
+	VK_ZOOM      : 0xFB,
+	VK_NONAME    : 0xFC,
+	VK_PA1       : 0xFD,
+	VK_OEM_CLEAR     : 0xFE
 }
 
 constants.keys={...key,...Object.fromEntries(Object.entries(key).map(([k,v])=>[v,k]))};
@@ -1935,8 +1936,8 @@ constants.styles=({WS_BORDER : 0x00800000,
 });
 constants.RawInputDeviceInformationCommand={
 	RIDI_DEVICENAME : 0x20000007,
-    RIDI_DEVICEINFO : 0x2000000b,
-    RIDI_PREPARSEDDATA : 0x20000005
+	RIDI_DEVICEINFO : 0x2000000b,
+	RIDI_PREPARSEDDATA : 0x20000005
 }
 
 constants.styles.WS_OVERLAPPEDWINDOW = constants.styles.WS_OVERLAPPED | constants.styles.WS_CAPTION | constants.styles.WS_SYSMENU
@@ -1983,33 +1984,33 @@ const LANG_ENGLISH = 0x09
 const SUBLANG_ENGLISH_US = 0x01
 function Win32Exception(){
 	var error=kernel32.GetLastError();
-		var errorText=Buffer.allocUnsafe(8);
-		errorText.type = ref.types.CString;
-		//console.log("errorText",errorText)
-		kernel32.FormatMessageA(// use system message tables to retrieve error text
-   FORMAT_MESSAGE_FROM_SYSTEM
-   // allocate buffer on local heap for error text
-   |FORMAT_MESSAGE_ALLOCATE_BUFFER
-   // Important! will fail otherwise, since we're not 
-   // (and CANNOT) pass insertion parameters
-   |FORMAT_MESSAGE_IGNORE_INSERTS,  
-   ref.NULL,    // unused with FORMAT_MESSAGE_FROM_SYSTEM
-   error,
-   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-   errorText,  // output 
-   0, // minimum size for output buffer
-   ref.NULL);   // arguments)
-   return errorText.deref();
-	
+	var errorText=Buffer.allocUnsafe(8);
+	errorText.type = ref.types.CString;
+	//console.log("errorText",errorText)
+	kernel32.FormatMessageA(// use system message tables to retrieve error text
+		FORMAT_MESSAGE_FROM_SYSTEM
+		// allocate buffer on local heap for error text
+		|FORMAT_MESSAGE_ALLOCATE_BUFFER
+		// Important! will fail otherwise, since we're not 
+		// (and CANNOT) pass insertion parameters
+		|FORMAT_MESSAGE_IGNORE_INSERTS,  
+		ref.NULL,    // unused with FORMAT_MESSAGE_FROM_SYSTEM
+		error,
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		errorText,  // output 
+		0, // minimum size for output buffer
+		ref.NULL);   // arguments)
+	return errorText.deref();
+
 }
 function errorHandling(fn,errcondition,name){
 	return (..._)=>{var result;
-	result=fn(..._);
-	if(errcondition(result)){
-		var errorText=Win32Exception();
-		console.log("function errored",{name,/*arg:_,result,*/errorText});
-		return result;
-	}else{return result;}
+		result=fn(..._);
+		if(errcondition(result)){
+			var errorText=Win32Exception();
+			console.log("function errored",{name,/*arg:_,result,*/errorText});
+			return result;
+		}else{return result;}
 	}	
 }
 
@@ -2020,17 +2021,17 @@ var goodies={}
 goodies.errorHandling=errorHandling;
 goodies.MSG=new wintypes.MSG();
 var defaultFcts={message:function(message){
-//	messages.map(_=>{//Performance cost is too great, isn't it amazing?
-//if(wintypes.msg[message.message]){
+	//	messages.map(_=>{//Performance cost is too great, isn't it amazing?
+	//if(wintypes.msg[message.message]){
 
-	        if(constants.msg[message.message])win32messageHandler.emit(constants.msg[message.message],message.lParam,message.wParam);
-			current.TranslateMessage(message.ref());
-			current.DispatchMessageA(message.ref());
+	if(constants.msg[message.message])win32messageHandler.emit(constants.msg[message.message],message.lParam,message.wParam);
+	current.TranslateMessage(message.ref());
+	current.DispatchMessageA(message.ref());
 }
 };
 var win32messageHandler=new events();
 win32messageHandler.conditionalOnce=function(event,cb,condition
-//,addEmitter=_=>_,removeEmitter=_=>_
+	//,addEmitter=_=>_,removeEmitter=_=>_
 ){
 	function eventfn(events,listener){
 		if(condition(events,listener)){
@@ -2041,7 +2042,7 @@ win32messageHandler.conditionalOnce=function(event,cb,condition
 	}
 	//addEmitter()
 	win32messageHandler.on(event,eventfn);
-	
+
 }
 win32messageHandler.uniqueOn=function(event,cb){
 	if(!eventcblist[event])eventcblist[event]=[];
@@ -2054,33 +2055,33 @@ win32messageHandler.uniqueOn=function(event,cb){
 goodies.win32messageHandler=win32messageHandler;
 
 /*function startintervalmsgloop(){
-	win32messageHandler._msgInterval=setInterval(_=>{
-			var i=0;
-			//Don't use GetMessage, it blocks making node unable to do anything else!
-			while(current.PeekMessageA(goodies.MSG.ref(),0,0,0,constants.styles.PM_REMOVE)){
-				win32messageHandler.emit("message",goodies.MSG);
-			}		
-		},0);
-	win32messageHandler.conditionalOnce('removeListener',(events,listener)=>{
-		console.log('interval removed')
-		clearInterval(win32messageHandler._msgInterval);	
-		win32messageHandler.conditionalOnce('newListener',startintervalmsgloop,e=>e==="message");
-},(events)=>events=="message"&&win32messageHandler.listenerCount('message')==0)
-	
-}
-win32messageHandler.conditionalOnce('newListener',startintervalmsgloop,e=>e==="message");*/
-function oneTimeListen(event,starter,remover){
-	var c=e=>e===event;
-	function beginEventLoop(){
-	var x=starter();
-	win32messageHandler.conditionalOnce('removeListener',(events,listener)=>{
-		if(remover(x))
-		win32messageHandler.conditionalOnce('newListener',beginEventLoop,c);
-},(events)=>events==event&&win32messageHandler.listenerCount(event)==0);
-	
-}
-	win32messageHandler.conditionalOnce('newListener',beginEventLoop,c);
-}
+			win32messageHandler._msgInterval=setInterval(_=>{
+					var i=0;
+				//Don't use GetMessage, it blocks making node unable to do anything else!
+					while(current.PeekMessageA(goodies.MSG.ref(),0,0,0,constants.styles.PM_REMOVE)){
+						win32messageHandler.emit("message",goodies.MSG);
+					}		
+				},0);
+			win32messageHandler.conditionalOnce('removeListener',(events,listener)=>{
+				console.log('interval removed')
+				clearInterval(win32messageHandler._msgInterval);	
+				win32messageHandler.conditionalOnce('newListener',startintervalmsgloop,e=>e==="message");
+		},(events)=>events=="message"&&win32messageHandler.listenerCount('message')==0)
+
+		}
+		win32messageHandler.conditionalOnce('newListener',startintervalmsgloop,e=>e==="message");*/
+				function oneTimeListen(event,starter,remover){
+					var c=e=>e===event;
+					function beginEventLoop(){
+						var x=starter();
+						win32messageHandler.conditionalOnce('removeListener',(events,listener)=>{
+							if(remover(x))
+								win32messageHandler.conditionalOnce('newListener',beginEventLoop,c);
+						},(events)=>events==event&&win32messageHandler.listenerCount(event)==0);
+
+					}
+					win32messageHandler.conditionalOnce('newListener',beginEventLoop,c);
+				}
 function typePointerBuffer(p,t){
 	var load=Buffer.allocUnsafe(8);
 	load.writeBigUint64LE(BigInt(p));
@@ -2088,21 +2089,21 @@ function typePointerBuffer(p,t){
 	return load;
 }
 oneTimeListen("message",_=>setInterval(_=>{
-			var i=0;
-			//Don't use GetMessage, it blocks making node unable to do anything else!
-			while(current.PeekMessageA(goodies.MSG.ref(),0,0,0,constants.styles.PM_REMOVE)){
-				win32messageHandler.emit("message",goodies.MSG);
-			}		
-		},0),_=>{clearInterval(_);return true});
+	var i=0;
+	//Don't use GetMessage, it blocks making node unable to do anything else!
+	while(current.PeekMessageA(goodies.MSG.ref(),0,0,0,constants.styles.PM_REMOVE)){
+		win32messageHandler.emit("message",goodies.MSG);
+	}		
+},0),_=>{clearInterval(_);return true});
 var keyHandler_LL=ffi.Callback(...wintypes.fn.Hookproc,(nCode,wParam,lParam)=>{
 	//console.log(nCode,"ncode")
-		var load=typePointerBuffer(lParam,ref.refType(wintypes.KBDLLHOOKSTRUCT))
-		var kbldstruct=Object.fromEntries(load.deref().deref().toJSON());
-		var obj={nCode,wParam,...kbldstruct};
-		win32messageHandler.emit("WH_KEYBOARD_LL",obj);
-		if(!obj.defaultPrevent)return current.CallNextHookEx(goodies._WH_KEYBOARD_LL_storage[0], nCode, wParam, lParam);
+	var load=typePointerBuffer(lParam,ref.refType(wintypes.KBDLLHOOKSTRUCT))
+	var kbldstruct=Object.fromEntries(load.deref().deref().toJSON());
+	var obj={nCode,wParam,...kbldstruct};
+	win32messageHandler.emit("WH_KEYBOARD_LL",obj);
+	if(!obj.defaultPrevent)return current.CallNextHookEx(goodies._WH_KEYBOARD_LL_storage[0], nCode, wParam, lParam);
 });
-		
+
 oneTimeListen("WH_KEYBOARD_LL",_=>{
 	const  WH_KEYBOARD_LL=13;
 	var stopgarbageColection=[];//Yes this is as ugly as it looks.
@@ -2110,7 +2111,7 @@ oneTimeListen("WH_KEYBOARD_LL",_=>{
 	var callback=keyHandler_LL;
 	stopgarbageColection.push(current.SetWindowsHookExA(WH_KEYBOARD_LL, keyHandler_LL, 0, 0));
 	stopgarbageColection.push(callback);
-return stopgarbageColection;},([HHandle,cb])=>{current.UnhookWindowsHookEx(HHandle);goodies._WH_KEYBOARD_LL_storage=[];return true;})
+	return stopgarbageColection;},([HHandle,cb])=>{current.UnhookWindowsHookEx(HHandle);goodies._WH_KEYBOARD_LL_storage=[];return true;})
 goodies.CreateWindowExA=errorHandling(current.CreateWindowExA,/*isZero*/nonZero,"CreateWindowExA")
 goodies.RegisterClassA=errorHandling(current.RegisterClassA,/*isZero*/nonZero,"RegisterClassA")
 goodies.getRawInputDeviceInfo=function(hDevice,uiCommand,pData=ref.NULL){
@@ -2121,16 +2122,16 @@ goodies.getRawInputDeviceInfo=function(hDevice,uiCommand,pData=ref.NULL){
 	var gridi=errorHandling(current.GetRawInputDeviceInfoA,isZero,"GetRawInputDeviceInfoA");
 	gridi(hDevice, uiCommand, pData, strsize);
 	return pData;
-	
+
 }
 goodies.getRawInputDeviceList=function getRawInputDeviceList(){
-var gridl=errorHandling(current.GetRawInputDeviceList,_=>_==(-1>>>0));
-var nofdevices=Buffer.allocUnsafe(4); 
-current.GetRawInputDeviceList(ref.NULL,nofdevices,wintypes.RAWINPUTDEVICELIST.size);
-var devices=new (ArrayType(wintypes.RAWINPUTDEVICELIST))(nofdevices.readUint32LE())
-//var devices=Buffer.allocUnsafe(wintypes.RAWINPUTDEVICELIST.size*testtt.readUint32LE());
-gridl(devices.buffer,nofdevices,wintypes.RAWINPUTDEVICELIST.size);
-return devices;
+	var gridl=errorHandling(current.GetRawInputDeviceList,_=>_==(-1>>>0));
+	var nofdevices=Buffer.allocUnsafe(4); 
+	current.GetRawInputDeviceList(ref.NULL,nofdevices,wintypes.RAWINPUTDEVICELIST.size);
+	var devices=new (ArrayType(wintypes.RAWINPUTDEVICELIST))(nofdevices.readUint32LE())
+	//var devices=Buffer.allocUnsafe(wintypes.RAWINPUTDEVICELIST.size*testtt.readUint32LE());
+	gridl(devices.buffer,nofdevices,wintypes.RAWINPUTDEVICELIST.size);
+	return devices;
 }
 var win32dependees={};
 win32messageHandler.addDependency=dep=>{
@@ -2139,7 +2140,7 @@ win32messageHandler.addDependency=dep=>{
 		win32messageHandler.on(dep,defaultFcts[dep]);
 		win32dependees[dep]=i+1;
 	}
-	
+
 }
 win32messageHandler.removeDependency=dep=>{
 	var i=win32dependees[dep]|0;
@@ -2147,15 +2148,15 @@ win32messageHandler.removeDependency=dep=>{
 		win32messageHandler.off(dep,defaultFcts[dep]);
 		win32dependees[dep]=0
 	}
-	
+
 }
 var eventcblist={};
 function remove(array, element) {
-  const index = array.indexOf(element);
+	const index = array.indexOf(element);
 
-  if (index !== -1) {
-    array.splice(index, 1);
-  }
+	if (index !== -1) {
+		array.splice(index, 1);
+	}
 }
 
 win32messageHandler.open=_=>{
@@ -2168,70 +2169,71 @@ win32messageHandler.close=_=>{
 goodies.createWindow=function createWindow(params){
 	var window=new events();
 	var WindowProc=ffi.Callback(...wintypes.fn.WNDPROC,
-	(hwnd, uMsg, wParam, lParam) => {
-	  //console.log('WndProc callback',winapi.msg[uMsg],uMsg.toString(16),"wParam:",wParam,"lParam:",ref.address(lParam));
-	  let result = 0;
-	  var obj={hwnd,wParam,lParam};
-	  window.emit(constants.msg[uMsg]||uMsg,obj);
-	  if(obj.preventDefaulted){
-		  result=obj.result;
-	  }else
-	  result = current.DefWindowProcA(hwnd, uMsg, wParam, lParam);
-	  //console.info('Sending LRESULT: ' + result) 
-	  return result
-  },
-);
-    window.WindowProc=WindowProc;
+		(hwnd, uMsg, wParam, lParam) => {
+			//console.log('WndProc callback',winapi.msg[uMsg],uMsg.toString(16),"wParam:",wParam,"lParam:",ref.address(lParam));
+			let result = 0;
+			var obj={hwnd,wParam,lParam};
+			window.emit(constants.msg[uMsg]||uMsg,obj);
+			if(obj.preventDefaulted){
+				result=obj.result;
+			}else
+				result = current.DefWindowProcA(hwnd, uMsg, wParam, lParam);
+			//console.info('Sending LRESULT: ' + result) 
+			return result
+		},
+	);
+	window.WindowProc=WindowProc;
 	var wClass=new wintypes.WNDCLASSA();
-//wClass.cbSize=wClass.ref().byteLength;
-var sclass=params.className;//Buffer.from("Okay let's change this\0",'ucs2');
-wClass.lpfnWndProc=WindowProc;
-wClass.lpszClassName=sclass;
-if(winapi.goodies.RegisterClassA(wClass.ref())){
-	//var dStyle= constants.styles.WS_CAPTION|constants.styles.WS_SYSMENU;
-	
-	var hwnd=winapi.goodies.CreateWindowExA(
-	params.ExStyle,
-	sclass,
-	params.title,
-	params.Style,
-	params.X,
-	params.Y,
-	params.nWidth,
-	params.nHeight,
-	params.hWndParent,
-	params.hMenu,
-	params.hInstance,
-	params.lParam);
-	window.hwnd=hwnd;
+	//wClass.cbSize=wClass.ref().byteLength;
+	var sclass=params.className;//Buffer.from("Okay let's change this\0",'ucs2');
+	wClass.lpfnWndProc=WindowProc;
+	wClass.lpszClassName=sclass;
+	if(winapi.goodies.RegisterClassA(wClass.ref())){
+		//var dStyle= constants.styles.WS_CAPTION|constants.styles.WS_SYSMENU;
 
-	//params.hWndParent);
-	if(hwnd){
-		current.ShowWindow(hwnd,1);
-		win32messageHandler.addDependency('message');//open message loop
-		window.on("WM_DESTROY",_=>win32messageHandler.removeDependency('message'));//close message loop
-		
-		//	user32.UpdateWindow(hwnd);
+		var hwnd=winapi.goodies.CreateWindowExA(
+			params.ExStyle,
+			sclass,
+			params.title,
+			params.Style,
+			params.X,
+			params.Y,
+			params.nWidth,
+			params.nHeight,
+			params.hWndParent,
+			params.hMenu,
+			params.hInstance,
+			params.lParam);
+		window.hwnd=hwnd;
+
+		//params.hWndParent);
+		if(hwnd){
+			current.ShowWindow(hwnd,1);
+			win32messageHandler.addDependency('message');//open message loop
+			window.on("WM_DESTROY",_=>win32messageHandler.removeDependency('message'));//close message loop
+
+			//	user32.UpdateWindow(hwnd);
+		}else{
+			console.error("CreateWindow failed to create window..");
+		}
 	}else{
-		console.error("CreateWindow failed to create window..");
-	}
-}else{
-	console.error("Register Class Failed User32/RegisterClassEx")
-}	
-return window;
+		console.error("Register Class Failed User32/RegisterClassEx")
+	}	
+	return window;
 }
 goodies.typePointerBuffer=typePointerBuffer;
 goodies.getFocusedHandle=function GetFocusedHandle(){
 	//from https://stackoverflow.com/questions/12102000/send-win-api-paste-cmd-from-background-c-sharp-app
 	var info = new wintypes.GUITHREADINFO();
-    info.cbSize = wintypes.GUITHREADINFO.size;
-    if (!current.GetGUIThreadInfo(0, info.ref()))
-        throw new Win32Exception();
-    return info.hwndFocus;	
+	info.cbSize = wintypes.GUITHREADINFO.size;
+	if (!current.GetGUIThreadInfo(0, info.ref()))
+		throw new Win32Exception();
+	return info.hwndFocus;	
 }
+
 var messagecallback = ffi.Callback(...wintypes.fn.Sendasyncproc, (hWnd,uMsg,dwData,lresult) => {
-  messagecallback.relateddata[dwData-1](null,hWnd,uMsg,lresult);
-  messagecallback.relateddata.splice(dwData-1,1);
+	messagecallback.relateddata[dwData-1](null,hWnd,uMsg,lresult);
+	messagecallback.relateddata.splice(dwData-1,1);
 });
 messagecallback.relateddata=[];
 /**
@@ -2248,7 +2250,7 @@ goodies.SendMessageCallbackA=function SendMessageCallbackA(hWnd,uMsg,wParam,lPar
 	if(!r){
 		messagecallback.relateddata.pop();
 		cb(Error(Win32Exception()));
-		}
+	}
 }
 /**
  * This callback is displayed as a global member.
@@ -2258,6 +2260,46 @@ goodies.SendMessageCallbackA=function SendMessageCallbackA(hWnd,uMsg,wParam,lPar
  * @param {Number} uMsg
  * @param {Number} lresult
  */
+
+goodies.wsendFocus=function sendFocus(msg,wParam,lParam){
+	//Promisifies and sends message to focused window
+	var hWnd = winapi.goodies.getFocusedHandle();
+	return util.promisify(goodies.SendMessageCallbackA)(hWnd, msg, wParam, lParam);
+}
+
+
+goodies.setClipboard=function setClipboard(clipboardType,clipboardContent){
+	const GMEM_MOVEABLE=0x2;
+	var stringbuffer=clipboardContent;
+	var hmem=kernel32.GlobalAlloc(GMEM_MOVEABLE,stringbuffer.length);
+	var lptstr = kernel32.GlobalLock(hmem);
+	stringbuffer.copy(ref.reinterpret(lptstr, stringbuffer.length));
+	kernel32.GlobalUnlock(hmem);
+	if (!user32.OpenClipboard(0)){
+		kernel32.GlobalLock(hmem);
+		kernel32.GlobalFree(hmem);
+		kernel32.GlobalUnlock(hmem);
+		return 1
+	}
+	user32.EmptyClipboard();
+	user32.SetClipboardData(clipboardType, hmem);
+	user32.CloseClipboard();
+	return 0;//C type error
+}
+
+function getClipboard (clipboardFormat) {
+	if (!user32.IsClipboardFormatAvailable(+_) || !user32.OpenClipboard(0))
+		return ref.NULL;
+
+	var hglb = user32.GetClipboardData(_) //,wintypes.HGLOBAL);	   
+	var lptstr = kernel32.GlobalLock(hglb);
+	var size = kernel32.GlobalSize(hglb);
+	console.log("buffer size:", size)
+	var k=(ref.reinterpret(lptstr, size).toString();
+	kernel32.GlobalUnlock(hglb)
+	user32.CloseClipboard();
+	return k;
+}
 var winapi={ffi,goodies,constants,gdi32,kernel32,ref,Union,Struct:StructType,Array:ArrayType};
 
 
