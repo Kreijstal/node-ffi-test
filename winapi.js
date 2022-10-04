@@ -2287,15 +2287,14 @@ goodies.setClipboard=function setClipboard(clipboardType,clipboardContent){
 	return 0;//C type error
 }
 
-function getClipboard (clipboardFormat) {
-	if (!user32.IsClipboardFormatAvailable(+_) || !user32.OpenClipboard(0))
+goodies.getClipboard=function getClipboard(clipBoardFormat) {
+	if (!user32.IsClipboardFormatAvailable(clipBoardFormat) || !user32.OpenClipboard(0))
 		return ref.NULL;
-
-	var hglb = user32.GetClipboardData(_) //,wintypes.HGLOBAL);	   
+	var hglb = user32.GetClipboardData(clipBoardFormat) //,wintypes.HGLOBAL);	   
 	var lptstr = kernel32.GlobalLock(hglb);
 	var size = kernel32.GlobalSize(hglb);
 	console.log("buffer size:", size)
-	var k=(ref.reinterpret(lptstr, size).toString();
+	var k=Buffer.from(Buffer.from(ref.reinterpret(lptstr, size)));
 	kernel32.GlobalUnlock(hglb)
 	user32.CloseClipboard();
 	return k;

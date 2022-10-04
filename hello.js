@@ -41,48 +41,22 @@ var commands={"messagebox":_=>user32.MessageBoxA(0, "example", "something fun he
 	console.log(clipformats.map(_ => constants.clipboardFormats[_]))
 },
 "getclipboard":_=>{
-	if (!user32.IsClipboardFormatAvailable(+_) || !user32.OpenClipboard(0))
-		return;
-
-	var hglb = user32.GetClipboardData(_) //,wintypes.HGLOBAL);	   
-	var lptstr = kernel32.GlobalLock(hglb);
-	var size = kernel32.GlobalSize(hglb);
-	console.log("buffer size:", size)
-	var k=(ref.reinterpret(lptstr, size).toString());
-	kernel32.GlobalUnlock(hglb)
-	user32.CloseClipboard();
-	return k;
+	return winapi.goodies.getClipboard(+_).toString()
 },
 "paste":_=>{
 	return winapi.goodies.wsendFocus(constants.msg.WM_PASTE,0,0);
 },
 "setclipboard":_=>{
-	const GMEM_MOVEABLE=0x2
 	var x=splitat(_);
 	if(x.length<2){
-		return "Err";}
+		return "Err";
+	}
 	function splitat(str,substr=","){
 		var i=str.indexOf(substr);
 		if(i==-1)return [str];
 		return [str.slice(0,i),str.slice(i+1)]
 	}
-	//var hglb = user32.GetClipboardData(_) //,wintypes.HGLOBAL);	   
-	var stringbuffer=Buffer.from(x[1]+'\0');
-	var hmem=kernel32.GlobalAlloc(GMEM_MOVEABLE,stringbuffer.length);
-
-	var lptstr = kernel32.GlobalLock(hmem);
-	stringbuffer.copy(ref.reinterpret(lptstr, stringbuffer.length));
-	kernel32.GlobalUnlock(hmem);
-	if (!user32.OpenClipboard(0)){
-		kernel32.GlobalLock(hmem);
-		kernel32.GlobalFree(hmem);
-		kernel32.GlobalUnlock(hmem);
-		return "Err";
-	}
-	user32.EmptyClipboard();
-	user32.SetClipboardData(+x[0], hmem);
-	user32.CloseClipboard();
-	return "ok";
+		return winapi.goodies.getClipboard(+x[0],Buffer.from(x[1]+'\0'))?"Err":"ok";
 },
 "copy":_=>{
 	return winapi.goodies.wsendFocus(constants.msg.WM_COPY,0,0);
