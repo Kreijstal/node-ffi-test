@@ -56,7 +56,7 @@ var commands={"messagebox":_=>user32.MessageBoxA(0, "example", "something fun he
 		if(i==-1)return [str];
 		return [str.slice(0,i),str.slice(i+1)]
 	}
-		return winapi.goodies.getClipboard(+x[0],Buffer.from(x[1]+'\0'))?"Err":"ok";
+		return winapi.goodies.setClipboard(+x[0],Buffer.from(x[1]+'\0'))?"Err":"ok";
 },
 "copy":_=>{
 	return winapi.goodies.wsendFocus(constants.msg.WM_COPY,0,0);
@@ -187,8 +187,20 @@ function registerhotkey() {
 }
 registerhotkey();
 winapi.goodies.callbacks = [mwin, proc];
+asdfg=0;
+function onllkey (arg) {
+	arg.defaultPrevent=true;
+	console.log(arg);
+	//do something
+	/*
+	switch(constants.keys[arg.vkCode]||String.fromCharCode(arg.vkCode)){
 
-
+	}
+	if(asdfg++>5){
+		asdfg=0;
+		winapi.goodies.win32messageHandler.off("WH_KEYBOARD_LL",onllkey);
+	}*/
+}
 function onhotkey(lParam, wParam) {
 	//console.log("message..",constants.msg[msg.message],msg.message.toString(16));	
 	console.log('hotkey executed')
@@ -210,31 +222,7 @@ function onhotkey(lParam, wParam) {
 			bufferarr.push(l.ref());
 		}
 		winapi.goodies.errorHandling(user32.SendInput, _ => _ !== bufferarr.length, "sendInput")(bufferarr.length, Buffer.concat(bufferarr), wintypes.INPUT.size);
-		bufferarr=[];
-		//var hWnd = winapi.goodies.getFocusedHandle();
-		//winapi.goodies.SendMessageCallbackA(hWnd, constants.msg.WM_COPY, 0, 0,_=>{console.log("I've been called back?")})
-		//console.log('copy?')
-		l(4);
-		var win = new wintypes.INPUT();
-		win.type = INPUT_KEYBOARD;
-		win.DUMMYUNIONNAME.ki.wScan = 0;
-		win.DUMMYUNIONNAME.ki.time = 0;
-		win.DUMMYUNIONNAME.ki.dwExtraInfo = 0;
-		win.DUMMYUNIONNAME.ki.wVk = 0x41;
-		win.DUMMYUNIONNAME.ki.dwFlags = 0;
-		bufferarr.push(win.ref());
-		var mclick = new wintypes.INPUT();
-		//ZeroMemory(&buffer, sizeof(buffer));
-		mclick.type = INPUT_MOUSE;
-		mclick.DUMMYUNIONNAME.mi.dx = 0;
-		mclick.DUMMYUNIONNAME.mi.dy = 10;
-		mclick.DUMMYUNIONNAME.mi.mouseData = 0;
-		mclick.DUMMYUNIONNAME.mi.dwFlags = MOUSEEVENTF_MOVE;
-		mclick.DUMMYUNIONNAME.mi.time = 0;
-		mclick.DUMMYUNIONNAME.mi.dwExtraInfo = 0;
-		bufferarr.push(mclick.ref());
-		win.DUMMYUNIONNAME.ki.dwFlags = KEYEVENTF_KEYUP;
-
+		winapi.goodies.win32messageHandler.conditionalOnce("WH_KEYBOARD_LL",onllkey,_=>String.fromCharCode(_.vkCode)=="A");	
 	}
 }
 function strToKeys(str){

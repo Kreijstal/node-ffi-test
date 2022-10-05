@@ -2101,7 +2101,7 @@ var keyHandler_LL=ffi.Callback(...wintypes.fn.Hookproc,(nCode,wParam,lParam)=>{
 	var kbldstruct=Object.fromEntries(load.deref().deref().toJSON());
 	var obj={nCode,wParam,...kbldstruct};
 	win32messageHandler.emit("WH_KEYBOARD_LL",obj);
-	if(!obj.defaultPrevent)return current.CallNextHookEx(goodies._WH_KEYBOARD_LL_storage[0], nCode, wParam, lParam);
+	return obj.defaultPrevent?1:current.CallNextHookEx(goodies._WH_KEYBOARD_LL_storage[0], nCode, wParam, lParam);
 });
 
 oneTimeListen("WH_KEYBOARD_LL",_=>{
@@ -2275,29 +2275,34 @@ goodies.setClipboard=function setClipboard(clipboardType,clipboardContent){
 	var lptstr = kernel32.GlobalLock(hmem);
 	stringbuffer.copy(ref.reinterpret(lptstr, stringbuffer.length));
 	kernel32.GlobalUnlock(hmem);
-	if (!user32.OpenClipboard(0)){
+	if (!current.OpenClipboard(0)){
 		kernel32.GlobalLock(hmem);
 		kernel32.GlobalFree(hmem);
 		kernel32.GlobalUnlock(hmem);
 		return 1
 	}
-	user32.EmptyClipboard();
-	user32.SetClipboardData(clipboardType, hmem);
-	user32.CloseClipboard();
+	current.EmptyClipboard();
+	current.SetClipboardData(clipboardType, hmem);
+	current.CloseClipboard();
 	return 0;//C type error
 }
 
+
 goodies.getClipboard=function getClipboard(clipBoardFormat) {
-	if (!user32.IsClipboardFormatAvailable(clipBoardFormat) || !user32.OpenClipboard(0))
+	if (!current.IsClipboardFormatAvailable(clipBoardFormat) || !current.OpenClipboard(0))
 		return ref.NULL;
-	var hglb = user32.GetClipboardData(clipBoardFormat) //,wintypes.HGLOBAL);	   
+	var hglb = current.GetClipboardData(clipBoardFormat) //,wintypes.HGLOBAL);	   
 	var lptstr = kernel32.GlobalLock(hglb);
 	var size = kernel32.GlobalSize(hglb);
 	console.log("buffer size:", size)
 	var k=Buffer.from(Buffer.from(ref.reinterpret(lptstr, size)));
 	kernel32.GlobalUnlock(hglb)
-	user32.CloseClipboard();
+	current.CloseClipboard();
 	return k;
+}
+
+	goodies.generatekey=function generatekey (arguments) {
+	
 }
 var winapi={ffi,goodies,constants,gdi32,kernel32,ref,Union,Struct:StructType,Array:ArrayType};
 
