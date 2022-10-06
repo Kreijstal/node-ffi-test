@@ -21,10 +21,6 @@ var udps = udp.createSocket({
 });
 
 var t={};
-const INPUT_MOUSE = 0;
-const INPUT_KEYBOARD = 1;
-const KEYEVENTF_KEYUP = 2;
-const MOUSEEVENTF_MOVE = 1;
 const HWND_BROADCAST = 0xffff;
 var commands={"messagebox":_=>user32.MessageBoxA(0, "example", "something fun here as well", constants.msgbox.MB_OK | constants.msgbox.MB_ICONEXCLAMATION),
 "eval":_=>util.inspect(eval(_)),
@@ -188,19 +184,24 @@ function registerhotkey() {
 registerhotkey();
 winapi.goodies.callbacks = [mwin, proc];
 asdfg=0;
-function onllkey (arg) {
+function onhotkeyApress(arg) {//Log next messages for 10 seconds or something
 	arg.defaultPrevent=true;
-	console.log(arg);
-	//do something
-	/*
-	switch(constants.keys[arg.vkCode]||String.fromCharCode(arg.vkCode)){
-
+	console.log("This function has been run, success pressed A after hotkey")
+	function logMessage(obj){
+		console.log(obj,constants.msg[obj.uMsg])
 	}
-	if(asdfg++>5){
-		asdfg=0;
-		winapi.goodies.win32messageHandler.off("WH_KEYBOARD_LL",onllkey);
-	}*/
-}
+	switch(String.fromCharCode(arg.vkCode)){
+		case "A":
+			mwin.on("message",logMessage);
+			setTimeout(_=>mwin.off("message",logMessage),10000);
+			break;
+		case "G":
+			winapi.goodies.wsendFocus("WM_GETTEXTLENGTH",0,0).then(async ({lresult})=>{
+				console.log("length of text is "+lresult);
+			})
+		break;
+	}
+		}
 function onhotkey(lParam, wParam) {
 	//console.log("message..",constants.msg[msg.message],msg.message.toString(16));	
 	console.log('hotkey executed')
@@ -213,16 +214,16 @@ function onhotkey(lParam, wParam) {
 		var highorder = constants.macros.HIWORD(lParam);
 		if (highorder & MOD_CONTROL) {
 			let l = new wintypes.INPUT();
-			l.type = INPUT_KEYBOARD;
+			l.type = constants.input.INPUT_KEYBOARD;
 			l.DUMMYUNIONNAME.ki.wScan = 0;
 			l.DUMMYUNIONNAME.ki.time = 0;
 			l.DUMMYUNIONNAME.ki.dwExtraInfo = 0;
 			l.DUMMYUNIONNAME.ki.wVk = constants.keys.VK_CONTROL;
-			l.DUMMYUNIONNAME.ki.dwFlags = KEYEVENTF_KEYUP;
+			l.DUMMYUNIONNAME.ki.dwFlags = constants.input.Event.KEYEVENTF_KEYUP;
 			bufferarr.push(l.ref());
 		}
 		winapi.goodies.errorHandling(user32.SendInput, _ => _ !== bufferarr.length, "sendInput")(bufferarr.length, Buffer.concat(bufferarr), wintypes.INPUT.size);
-		winapi.goodies.win32messageHandler.conditionalOnce("WH_KEYBOARD_LL",onllkey,_=>String.fromCharCode(_.vkCode)=="A");	
+		winapi.goodies.win32messageHandler.conditionalOnce("WH_KEYBOARD_LL",onhotkeyApress,_=>['A','G'].includes(String.fromCharCode(_.vkCode)));
 	}
 }
 function strToKeys(str){
@@ -238,7 +239,7 @@ context.context["commands"]=commands
 context.context["msg"]=msg
 context.context["mwin"]=mwin
 //context.context["w"]=require('./winapi.js');
-
+//{Tab 4}{LShift Down}{Tab}
 function l(i){
 	if(i>23)return;
 	commands.setclipboard("1,Keystone"+String(i).padStart(2, '0'))

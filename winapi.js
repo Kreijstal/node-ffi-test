@@ -2112,6 +2112,7 @@ oneTimeListen("WH_KEYBOARD_LL",_=>{
 	stopgarbageColection.push(current.SetWindowsHookExA(WH_KEYBOARD_LL, keyHandler_LL, 0, 0));
 	stopgarbageColection.push(callback);
 	return stopgarbageColection;},([HHandle,cb])=>{current.UnhookWindowsHookEx(HHandle);goodies._WH_KEYBOARD_LL_storage=[];return true;})
+
 goodies.CreateWindowExA=errorHandling(current.CreateWindowExA,/*isZero*/nonZero,"CreateWindowExA")
 goodies.RegisterClassA=errorHandling(current.RegisterClassA,/*isZero*/nonZero,"RegisterClassA")
 goodies.getRawInputDeviceInfo=function(hDevice,uiCommand,pData=ref.NULL){
@@ -2173,6 +2174,7 @@ goodies.createWindow=function createWindow(params){
 			//console.log('WndProc callback',winapi.msg[uMsg],uMsg.toString(16),"wParam:",wParam,"lParam:",ref.address(lParam));
 			let result = 0;
 			var obj={hwnd,wParam,lParam};
+			window.emit("message",{uMsg,...obj});
 			window.emit(constants.msg[uMsg]||uMsg,obj);
 			if(obj.preventDefaulted){
 				result=obj.result;
@@ -2232,7 +2234,7 @@ goodies.getFocusedHandle=function GetFocusedHandle(){
 }
 
 var messagecallback = ffi.Callback(...wintypes.fn.Sendasyncproc, (hWnd,uMsg,dwData,lresult) => {
-	messagecallback.relateddata[dwData-1](null,hWnd,uMsg,lresult);
+	messagecallback.relateddata[dwData-1](null,{hWnd,uMsg,lresult});
 	messagecallback.relateddata.splice(dwData-1,1);
 });
 messagecallback.relateddata=[];
@@ -2260,12 +2262,12 @@ goodies.SendMessageCallbackA=function SendMessageCallbackA(hWnd,uMsg,wParam,lPar
  * @param {Number} uMsg
  * @param {Number} lresult
  */
-
+goodies.PSendMessageCallbackA=util.promisify(goodies.SendMessageCallbackA);
 goodies.wsendFocus=function sendFocus(msg,wParam,lParam){
 	//Promisifies and sends message to focused window
 	var hWnd = winapi.goodies.getFocusedHandle();
-	return util.promisify(goodies.SendMessageCallbackA)(hWnd, msg, wParam, lParam);
-}
+	return goodies.PSendMessageCallbackA(hWnd, msg, wParam, lParam);
+	}
 
 
 goodies.setClipboard=function setClipboard(clipboardType,clipboardContent){
@@ -2300,9 +2302,41 @@ goodies.getClipboard=function getClipboard(clipBoardFormat) {
 	current.CloseClipboard();
 	return k;
 }
+const INPUT_MOUSE = 0;
+const INPUT_KEYBOARD = 1;
+const KEYEVENTF_KEYUP = 2;
+const KEYEVENT_EXTENDEDKEY=1;
+const MOUSEEVENTF_MOVE = 0x0001;
+const MOUSEEVENTF_LEFTDOWN = 0x0002;
+const MOUSEEVENTF_LEFTUP = 0x0004;
+const MOUSEEVENTF_RIGHTDOWN = 0x0008;
+const MOUSEEVENTF_RIGHTUP = 0x0010;
+const MOUSEEVENTF_MIDDLEDOWN = 0x0020;
+const MOUSEEVENTF_MIDDLEUP = 0x0040;
+const MOUSEEVENTF_ABSOLUTE = 0x8000;
+constants.input={INPUT_MOUSE,INPUT_KEYBOARD,Event:{KEYEVENTF_KEYUP,MOUSEEVENTF_MOVE,
+MOUSEEVENTF_LEFTDOWN,
+MOUSEEVENTF_LEFTUP,
+MOUSEEVENTF_RIGHTDOWN ,
+MOUSEEVENTF_RIGHTUP,
+MOUSEEVENTF_MIDDLEDOWN,
+MOUSEEVENTF_MIDDLEUP,
+MOUSEEVENTF_ABSOLUTE
+}};
 
-	goodies.generatekey=function generatekey (arguments) {
+goodies.generatekey=function generatekey(keys2generate,up=False,extended=False) {
+var wVk;
+if(keys2generate.length==1){
+wVk=keys2generate.toC
+}else 
+wVk=Object.entries(key).find(([k,v])=>new RegExp(keys2generate,'i').test(k))[1];
+if(!wVk)throw new Error("no valid key given");
+var dwFlags=(up?KEYEVENTF_KEYUP:0)|(extended?KEYEVENT_EXTENDEDKEY:0);
+return new wintypes.INPUT({type:INPUT_KEYBOARD,DUMMYUNIONNAME:{ki:{wVk,dwFlags}}});
 	
+}
+goodies.parseInnerbracket=function bracketParse(text) {
+		
 }
 var winapi={ffi,goodies,constants,gdi32,kernel32,ref,Union,Struct:StructType,Array:ArrayType};
 
