@@ -2001,7 +2001,6 @@ function Win32Exception(){
 		0, // minimum size for output buffer
 		ref.NULL);   // arguments)
 	return errorText.deref();
-
 }
 function errorHandling(fn,errcondition,name){
 	return (..._)=>{var result;
@@ -2070,18 +2069,18 @@ goodies.win32messageHandler=win32messageHandler;
 
 		}
 		win32messageHandler.conditionalOnce('newListener',startintervalmsgloop,e=>e==="message");*/
-				function oneTimeListen(event,starter,remover){
-					var c=e=>e===event;
-					function beginEventLoop(){
-						var x=starter();
-						win32messageHandler.conditionalOnce('removeListener',(events,listener)=>{
-							if(remover(x))
-								win32messageHandler.conditionalOnce('newListener',beginEventLoop,c);
-						},(events)=>events==event&&win32messageHandler.listenerCount(event)==0);
+function oneTimeListen(event,starter,remover){
+	var c=e=>e===event;
+	function beginEventLoop(){
+		var x=starter();
+		win32messageHandler.conditionalOnce('removeListener',(events,listener)=>{
+			if(remover(x))
+				win32messageHandler.conditionalOnce('newListener',beginEventLoop,c);
+		},(events)=>events==event&&win32messageHandler.listenerCount(event)==0);
 
-					}
-					win32messageHandler.conditionalOnce('newListener',beginEventLoop,c);
-				}
+	}
+	win32messageHandler.conditionalOnce('newListener',beginEventLoop,c);
+}
 function typePointerBuffer(p,t){
 	var load=Buffer.allocUnsafe(8);
 	load.writeBigUint64LE(BigInt(p));
@@ -2166,7 +2165,22 @@ win32messageHandler.open=_=>{
 win32messageHandler.close=_=>{
 	win32messageHandler.removeDependency('message')
 };
-
+constants.ShowWindow={
+	SW_HIDE:0,
+	SW_SHOWNORMAL:1,
+	SW_NORMAL:1,
+	SW_SHOWMINIMIZED:2,
+	SW_SHOWMAXIMIZED:3,
+	SW_MAXIMIZE:3,
+	SW_SHOWNOACTIVATE:4,
+	SW_SHOW:5,
+	SW_MINIMIZE:6,
+	SW_SHOWMINNOACTIVE:7,
+	SW_SHOWNA:8,
+	SW_RESTORE:9,
+	SW_SHOWDEFAULT:10,
+	SW_FORCEMINIMIZE:11
+}
 goodies.createWindow=function createWindow(params){
 	var window=new events();
 	var WindowProc=ffi.Callback(...wintypes.fn.WNDPROC,
@@ -2210,7 +2224,7 @@ goodies.createWindow=function createWindow(params){
 
 		//params.hWndParent);
 		if(hwnd){
-			current.ShowWindow(hwnd,1);
+			current.ShowWindow(hwnd,params.swflag);
 			win32messageHandler.addDependency('message');//open message loop
 			window.on("WM_DESTROY",_=>win32messageHandler.removeDependency('message'));//close message loop
 
@@ -2306,6 +2320,8 @@ const INPUT_MOUSE = 0;
 const INPUT_KEYBOARD = 1;
 const KEYEVENTF_KEYUP = 2;
 const KEYEVENT_EXTENDEDKEY=1;
+const KEYEVENTF_SCANCODE=8;
+const KEYEVENTF_UNICODE=4;
 const MOUSEEVENTF_MOVE = 0x0001;
 const MOUSEEVENTF_LEFTDOWN = 0x0002;
 const MOUSEEVENTF_LEFTUP = 0x0004;
@@ -2315,28 +2331,66 @@ const MOUSEEVENTF_MIDDLEDOWN = 0x0020;
 const MOUSEEVENTF_MIDDLEUP = 0x0040;
 const MOUSEEVENTF_ABSOLUTE = 0x8000;
 constants.input={INPUT_MOUSE,INPUT_KEYBOARD,Event:{KEYEVENTF_KEYUP,MOUSEEVENTF_MOVE,
-MOUSEEVENTF_LEFTDOWN,
-MOUSEEVENTF_LEFTUP,
-MOUSEEVENTF_RIGHTDOWN ,
-MOUSEEVENTF_RIGHTUP,
-MOUSEEVENTF_MIDDLEDOWN,
-MOUSEEVENTF_MIDDLEUP,
-MOUSEEVENTF_ABSOLUTE
+	MOUSEEVENTF_LEFTDOWN,
+	MOUSEEVENTF_LEFTUP,
+	MOUSEEVENTF_RIGHTDOWN,
+	MOUSEEVENTF_RIGHTUP,
+	MOUSEEVENTF_MIDDLEDOWN,
+	MOUSEEVENTF_MIDDLEUP,
+	MOUSEEVENTF_ABSOLUTE,
+	KEYEVENTF_SCANCODE,
+	KEYEVENTF_UNICODE,
+	KEYEVENT_EXTENDEDKEY
 }};
 
-goodies.generatekey=function generatekey(keys2generate,up=False,extended=False) {
-var wVk;
-if(keys2generate.length==1){
-wVk=keys2generate.toC
-}else 
-wVk=Object.entries(key).find(([k,v])=>new RegExp(keys2generate,'i').test(k))[1];
-if(!wVk)throw new Error("no valid key given");
-var dwFlags=(up?KEYEVENTF_KEYUP:0)|(extended?KEYEVENT_EXTENDEDKEY:0);
-return new wintypes.INPUT({type:INPUT_KEYBOARD,DUMMYUNIONNAME:{ki:{wVk,dwFlags}}});
-	
+function generatekey(keys2generate,up=false,extended=false) {
+	//nobody cares about scancodes, they map to the physical keyboard, and it never changes no matter which language you are in. We don't want to send real keys, we want to send characters, so we simply don't use it.
+	var wVk;
+	var dwFlags=0;
+	var wScan=0;
+	if(keys2generate.length==1){
+		wVk=0;
+		wScan=keys2generate.charCodeAt();
+		dwFlags|=KEYEVENTF_UNICODE;
+	}else 
+		wVk=Object.entries(key).find(([k,v])=>new RegExp(keys2generate,'i').test(k))[1];
+	if(!wVk&&!wScan)
+		throw new Error("no valid key given");
+	if (up) {
+		dwFlags|=KEYEVENTF_KEYUP;	
+	}
+	if(extended){
+		dwFlags|=KEYEVENT_EXTENDEDKEY;
+	}
+	return new wintypes.INPUT({type:INPUT_KEYBOARD,DUMMYUNIONNAME:{ki:{wVk,dwFlags,wScan}}});
 }
-goodies.parseInnerbracket=function bracketParse(text) {
-		
+function bracketParse(key,command) {
+	var buf=[];
+	if(typeof command=="undefined"){
+		command=1;
+	}
+	if(command=="Down"){
+		buf.push(generatekey(key,false));
+	}else if (command=="Up") {
+		buf.push(generatekey(key,true));
+	} else {
+		var i=parseInt(command);
+		for(var ii=0;ii<i;ii++){
+			buf.push(generatekey(key,false));
+			buf.push(generatekey(key,true));
+		}		
+	}
+	return buf;
+}
+goodies.ahkformatToSendInput=function ahkformatToSendInput(ahktext){
+	return	[...ahktext.matchAll(/\{(\}|[^ \}]+)(?: (Down|Up|[0-9]+))?\}/g)].map(a=>a.slice(1)).map(([key,command])=>bracketParse(key,command)).flat().map(_=>_.ref());
+}
+goodies.sendInput=sendInput;
+function sendInput(arr){
+	return winapi.goodies.errorHandling(current.SendInput,_=>_!==arr.length,"sendInput")(arr.length,Buffer.concat(arr),wintypes.INPUT.size);
+}
+goodies.sendInputAhk=function sendInputAhk(ahktext){
+	return sendInput(this.ahkformatToSendInput(ahktext));
 }
 var winapi={ffi,goodies,constants,gdi32,kernel32,ref,Union,Struct:StructType,Array:ArrayType};
 

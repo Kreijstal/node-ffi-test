@@ -1,8 +1,8 @@
 var ffi = require('ffi-napi')
 var ref = require('ref-napi');
-var ArrayType = require('ref-array-di')(ref);
-var StructType = require('ref-struct-di')(ref);
-var Union = require('ref-union-di')(ref);
+//var ArrayType = require('ref-array-di')(ref);
+//var StructType = require('ref-struct-di')(ref);
+//var Union = require('ref-union-di')(ref);
 var {
 	winapi,
 	user32,
@@ -32,7 +32,6 @@ var commands={"messagebox":_=>user32.MessageBoxA(0, "example", "something fun he
 		intervalue = user32.EnumClipboardFormats(intervalue)
 		clipformats.push(intervalue)
 	}
-
 	console.log(clipformats)
 	console.log(clipformats.map(_ => constants.clipboardFormats[_]))
 },
@@ -58,15 +57,12 @@ var commands={"messagebox":_=>user32.MessageBoxA(0, "example", "something fun he
 	return winapi.goodies.wsendFocus(constants.msg.WM_COPY,0,0);
 },"usetcp":_=>{
 	var net = require('net');
-
 	var server = net.createServer(function(socket) {
 		socket.write('Echo server\r\n');
 		socket.pipe(socket);
 	});
-
 	server.listen(1337, '127.0.0.1');
-
-}
+	}
 };
 udps.on('message',async function(msg,info){
 	t[info.address+'/'+info.port]=info;	
@@ -106,7 +102,7 @@ var mwin = winapi.goodies.createWindow({
 	hMenu: 0,
 	hInstance: 0,
 	lParam: ref.NULL,
-
+	swflag:constants.ShowWindow.SW_HIDE
 });
 user32.AddClipboardFormatListener(mwin.hwnd);
 mwin.on("WM_CLIPBOARDUPDATE", (obj) => {
@@ -164,7 +160,7 @@ mwin.on("WM_DESTROY", (obj) => {
 	obj.result = 0;
 	udps.close();
 });
-
+mwin.on("WM_HOTKEY",(..._)=>conole.log(..._,"window hotkey, called"));
 
 console.log("wintypes.KBDLLHOOKSTRUCT.size", wintypes.KBDLLHOOKSTRUCT.size)
 
@@ -195,11 +191,18 @@ function onhotkeyApress(arg) {//Log next messages for 10 seconds or something
 			mwin.on("message",logMessage);
 			setTimeout(_=>mwin.off("message",logMessage),10000);
 			break;
+		case "S":
+			winapi.goodies.win32messageHandler.on("WH_KEYBOARD_LL",console.log)
+			setTimeout(_=>winapi.goodies.win32messageHandler.off("WH_KEYBOARD_LL",console.log),10000);
+			break;
 		case "G":
 			winapi.goodies.wsendFocus("WM_GETTEXTLENGTH",0,0).then(async ({lresult})=>{
 				console.log("length of text is "+lresult);
 			})
-		break;
+			break;
+		case "Z":
+			winapi.goodies.sendInputAhk("{t}{e}{s}{t}");
+			break;
 	}
 		}
 function onhotkey(lParam, wParam) {
@@ -223,12 +226,8 @@ function onhotkey(lParam, wParam) {
 			bufferarr.push(l.ref());
 		}
 		winapi.goodies.errorHandling(user32.SendInput, _ => _ !== bufferarr.length, "sendInput")(bufferarr.length, Buffer.concat(bufferarr), wintypes.INPUT.size);
-		winapi.goodies.win32messageHandler.conditionalOnce("WH_KEYBOARD_LL",onhotkeyApress,_=>['A','G'].includes(String.fromCharCode(_.vkCode)));
+		winapi.goodies.win32messageHandler.conditionalOnce("WH_KEYBOARD_LL",onhotkeyApress,_=>['Z','A','G','S'].includes(String.fromCharCode(_.vkCode)));
 	}
-}
-function strToKeys(str){
-	str
-
 }
 winapi.goodies.win32messageHandler.on("WM_HOTKEY", onhotkey);
 var repl=require('node:repl');
