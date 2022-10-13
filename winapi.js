@@ -2029,26 +2029,13 @@ var defaultFcts={message:function(message){
 }
 };
 var win32messageHandler=new events();
-win32messageHandler.conditionalOnce=function(event,cb,condition
-	//,addEmitter=_=>_,removeEmitter=_=>_
-){
-	function eventfn(events,listener){
-		if(condition(events,listener)){
-			cb(events,listener);
-			//removeEmitter();
-			win32messageHandler.off(event,eventfn);
-		}
-	}
-	//addEmitter()
-	win32messageHandler.on(event,eventfn);
-
-}
+require('./eventUtils.js').addEventUtilsToEventDispatcher(win32messageHandler);
 win32messageHandler.uniqueOn=function(event,cb){
 	if(!eventcblist[event])eventcblist[event]=[];
 	if(!eventcblist[event].includes(cb)){
 		eventcblist[event].push(cb);
-		win32messageHandler.on(event,cb);
-		win32messageHandler.conditionalOnce('removeListener',_=>remove(eventcblist[event],cb),(ev,listener)=>ev==event&&cb==listener);
+		this.on(event,cb);
+		this.conditionalOnce('removeListener',_=>remove(eventcblist[event],cb),(ev,listener)=>ev==event&&cb==listener);
 	}	
 }
 goodies.win32messageHandler=win32messageHandler;
@@ -2365,6 +2352,8 @@ function generatekey(keys2generate,up=false,extended=false) {
 	return new wintypes.INPUT({type:INPUT_KEYBOARD,DUMMYUNIONNAME:{ki:{wVk,dwFlags,wScan}}});
 }
 function bracketParse(key,command) {
+	if(key.toLowerCase()=="sleep")
+		return {type:"sleep",time:parseInt(command)||1}
 	var buf=[];
 	if(typeof command=="undefined"){
 		command=1;
@@ -2382,15 +2371,35 @@ function bracketParse(key,command) {
 	}
 	return buf;
 }
-goodies.ahkformatToSendInput=function ahkformatToSendInput(ahktext){
-	return	[...ahktext.matchAll(/\{(\}|[^ \}]+)(?: (Down|Up|[0-9]+))?\}/g)].map(a=>a.slice(1)).map(([key,command])=>bracketParse(key,command)).flat().map(_=>_.ref());
+async function ahkformat(ahktext){
+	return	[...ahktext.matchAll(/\{(\}|[^ \}]+)(?: (Down|Up|[0-9]+))?\}/g)].map(a=>a.slice(1)).map(([key,command])=>bracketParse(key,command)).flat()
+	.reduce(([left,index],right)=>{
+		left[index]=[].concat(left[index]||[]);
+		if(right.type=="sleep"){
+			if(left[index]?.length)index++;
+			left[index]=right;
+			index++;			
+		}else{
+			left[index].push(right)
+		}
+		return [left,index];
+	},[[],0])[0]//.map(_=>_.ref());
 }
 goodies.sendInput=sendInput;
 function sendInput(arr){
 	return winapi.goodies.errorHandling(current.SendInput,_=>_!==arr.length,"sendInput")(arr.length,Buffer.concat(arr),wintypes.INPUT.size);
 }
-goodies.sendInputAhk=function sendInputAhk(ahktext){
-	return sendInput(this.ahkformatToSendInput(ahktext));
+
+goodies.sendInputAhk=function async sendInputAhk(ahktext){
+	return await ahkformat(ahktext).reduce(async (a,b)=>{
+		await a;
+		if(b.type=="sleep"){
+			return sleep(b.time)
+
+		}else{
+			return sendInput(b.map(_=>_.ref()))
+		}
+	},null);
 }
 var winapi={ffi,goodies,constants,gdi32,kernel32,ref,Union,Struct:StructType,Array:ArrayType};
 
