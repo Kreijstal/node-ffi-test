@@ -29,9 +29,10 @@ udps.on('message',async function(msg,info){
 	console.log('Received %d bytes from %s:%d\n',msg.length, info.address, info.port);
 });
 
-async function msg(msg){
+async function msg(msg,expect=_=>true){
 	//sending msg
 udps.send(Buffer.from(msg),2222,require('./input.json').domain,console.log);
+	return (await udps.pcondintionalOnce('message',expect)).msg?.toString();
 
 }
 
@@ -145,8 +146,10 @@ function onhotkeyApress(arg) {//Log next messages for 10 seconds or something
 			break;
 		case 'D':
 			(async _=>{
-				msg("")
-
+				await msg("sendahkString {Tab 4}{Shift Down}{Tab 4}{Shift Up}{Sleep 100}");
+				await msg('copy');
+				var g=await msg('getclipboard')
+				console.log('g has been obtained: value: '+g)
 			})()
 			break;
 		case "G":
@@ -181,7 +184,7 @@ function onhotkey(lParam, wParam) {
 			bufferarr.push(l.ref());
 		}
 		winapi.goodies.errorHandling(user32.SendInput, _ => _ !== bufferarr.length, "sendInput")(bufferarr.length, Buffer.concat(bufferarr), wintypes.INPUT.size);
-		winapi.goodies.win32messageHandler.conditionalOnce("WH_KEYBOARD_LL",onhotkeyApress,_=>"ASDZXCVBYG".split('').includes(String.fromCharCode(_.vkCode)));
+		winapi.goodies.win32messageHandler.conditionalOnce("WH_KEYBOARD_LL",onhotkeyApress,_=>"ASDZXVBYG".split('').includes(String.fromCharCode(_.vkCode)));
 	}
 }
 winapi.goodies.win32messageHandler.on("WM_HOTKEY", onhotkey);

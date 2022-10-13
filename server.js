@@ -113,7 +113,7 @@ mwin.on("WM_CLIPBOARDUPDATE", (obj) => {
 		wParam,
 		lParam
 	} = obj;
-	msg("Clipboard has changed mf");
+//	msg("Clipboard has changed mf");
 	if (!user32.IsClipboardFormatAvailable(constants.clipboardFormats.CF_TEXT) || !user32.OpenClipboard(hwnd))
 		return;
 	var clipcount = user32.CountClipboardFormats();
@@ -130,7 +130,7 @@ mwin.on("WM_CLIPBOARDUPDATE", (obj) => {
 	var lptstr = kernel32.GlobalLock(hglb);
 	var size = kernel32.GlobalSize(hglb);
 	console.log("buffer size:", size)
-	msg(ref.reinterpret(lptstr, size).toString());
+//	msg(ref.reinterpret(lptstr, size).toString());
 	kernel32.GlobalUnlock(hglb)
 	user32.CloseClipboard();
 });

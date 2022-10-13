@@ -2120,6 +2120,9 @@ goodies.getRawInputDeviceList=function getRawInputDeviceList(){
 	gridl(devices.buffer,nofdevices,wintypes.RAWINPUTDEVICELIST.size);
 	return devices;
 }
+function sleep(ms) {
+	    return new Promise(resolve => setTimeout(resolve, ms));
+}
 var win32dependees={};
 win32messageHandler.addDependency=dep=>{
 	var i=win32dependees[dep]|0;
@@ -2371,7 +2374,7 @@ function bracketParse(key,command) {
 	}
 	return buf;
 }
-async function ahkformat(ahktext){
+function ahkformat(ahktext){
 	return	[...ahktext.matchAll(/\{(\}|[^ \}]+)(?: (Down|Up|[0-9]+))?\}/g)].map(a=>a.slice(1)).map(([key,command])=>bracketParse(key,command)).flat()
 	.reduce(([left,index],right)=>{
 		left[index]=[].concat(left[index]||[]);
@@ -2390,7 +2393,7 @@ function sendInput(arr){
 	return winapi.goodies.errorHandling(current.SendInput,_=>_!==arr.length,"sendInput")(arr.length,Buffer.concat(arr),wintypes.INPUT.size);
 }
 
-goodies.sendInputAhk=function async sendInputAhk(ahktext){
+goodies.sendInputAhk=async function sendInputAhk(ahktext){
 	return await ahkformat(ahktext).reduce(async (a,b)=>{
 		await a;
 		if(b.type=="sleep"){
