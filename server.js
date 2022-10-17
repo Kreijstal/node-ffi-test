@@ -78,7 +78,7 @@ udps.on('message',async function(msg,info){
 	console.log(c,c[1],c[2])
 	if(c[1].trim() in commands){
 		var r=await commands[c[1].trim()](c[2]);
-		udps.send(Buffer.from(r?.toString()??"ok"),info.port,info.address,console.log)
+		udps.send(Buffer.from(typeof r=="object"?JSON.stringify(r):(r?.toString()??"ok")),info.port,info.address,console.log)
 	}
 	else {
 		udps.send(Buffer.from(`command ${c[1].trim()} not found`),info.port,info.address,console.log);

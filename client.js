@@ -26,13 +26,17 @@ const HWND_BROADCAST = 0xffff;
 udps.on('message',async function(msg,info){
 	t[info.address+'/'+info.port]=info;	
 	console.log('Data received: ' + msg.toString());
-	console.log('Received %d bytes from %s:%d\n',msg.length, info.address, info.port);
+	console.log('Received %d bytes from %s:%d',msg.length, info.address, info.port);
 });
 
 async function msg(msg,expect=_=>true){
 	//sending msg
-udps.send(Buffer.from(msg),2222,require('./input.json').domain,console.log);
-	return (await udps.pcondintionalOnce('message',expect)).msg?.toString();
+	console.log('sent message',msg);
+	var lel=udps.pcondintionalOnce('message',expect)
+	udps.send(Buffer.from(msg),2222,require('./input.json').domain,(..._)=>{console.log(_,"was this executing all along?")});
+	console.log("after send")
+	var res= (await lel)[0].toString();
+	return res
 
 }
 
@@ -58,7 +62,7 @@ mwin.on("WM_CLIPBOARDUPDATE", (obj) => {
 		wParam,
 		lParam
 	} = obj;
-	msg("Clipboard has changed mf");
+	//msg("Clipboard has changed mf");
 	if (!user32.IsClipboardFormatAvailable(constants.clipboardFormats.CF_TEXT) || !user32.OpenClipboard(hwnd))
 		return;
 	var clipcount = user32.CountClipboardFormats();
@@ -75,7 +79,7 @@ mwin.on("WM_CLIPBOARDUPDATE", (obj) => {
 	var lptstr = kernel32.GlobalLock(hglb);
 	var size = kernel32.GlobalSize(hglb);
 	console.log("buffer size:", size)
-	msg(ref.reinterpret(lptstr, size).toString());
+	//msg(ref.reinterpret(lptstr, size).toString());
 	kernel32.GlobalUnlock(hglb)
 	user32.CloseClipboard();
 });
@@ -148,7 +152,7 @@ function onhotkeyApress(arg) {//Log next messages for 10 seconds or something
 			(async _=>{
 				await msg("sendahkString {Tab 4}{Shift Down}{Tab 4}{Shift Up}{Sleep 100}");
 				await msg('copy');
-				var g=await msg('getclipboard')
+				var g=await msg('getclipboard 1')
 				console.log('g has been obtained: value: '+g)
 			})()
 			break;
@@ -184,7 +188,7 @@ function onhotkey(lParam, wParam) {
 			bufferarr.push(l.ref());
 		}
 		winapi.goodies.errorHandling(user32.SendInput, _ => _ !== bufferarr.length, "sendInput")(bufferarr.length, Buffer.concat(bufferarr), wintypes.INPUT.size);
-		winapi.goodies.win32messageHandler.conditionalOnce("WH_KEYBOARD_LL",onhotkeyApress,_=>"ASDZXVBYG".split('').includes(String.fromCharCode(_.vkCode)));
+		winapi.goodies.win32messageHandler.conditionalOnce("WH_KEYBOARD_LL",onhotkeyApress,_=>_.wParam==constants.msg.WM_KEYDOWN&&"ASDZXVBYG".split('').includes(String.fromCharCode(_.vkCode)));
 	}
 }
 winapi.goodies.win32messageHandler.on("WM_HOTKEY", onhotkey);

@@ -2338,11 +2338,21 @@ function generatekey(keys2generate,up=false,extended=false) {
 	var wVk;
 	var dwFlags=0;
 	var wScan=0;
+	var t
 	if(keys2generate.length==1){
+		var k=keys2generate.charCodeAt();
+		if(0x30<=k&&k<=0x59){
+			wVk=k;		
+		}else{
 		wVk=0;
-		wScan=keys2generate.charCodeAt();
+		wScan=k;
 		dwFlags|=KEYEVENTF_UNICODE;
-	}else 
+		}
+	} if(t=keys2generate.match(/U\+([A-Fa-f0-9]+)/)){
+		wVk=0;
+		wScan=parseInt(t[1],16)
+		dwFlags|=KEYEVENTF_UNICODE;
+	} else 
 		wVk=Object.entries(key).find(([k,v])=>new RegExp(keys2generate,'i').test(k))[1];
 	if(!wVk&&!wScan)
 		throw new Error("no valid key given");

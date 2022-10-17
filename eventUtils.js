@@ -14,7 +14,8 @@ eventdispatcher.conditionalOnce=function(event,cb,condition
 		}
 	}
 	//addEmitter()
-	this.on(event,eventfn.bind(this));
+	
+	this.on(event,eventfn);
 }
 eventdispatcher.pcondintionalOnce=util.promisify(function(event,condition,cb){
 return this.conditionalOnce(event,(...args)=>cb(null,args),condition)
