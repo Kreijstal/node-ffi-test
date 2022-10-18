@@ -2030,6 +2030,7 @@ var defaultFcts={message:function(message){
 };
 var win32messageHandler=new events();
 require('./eventUtils.js').addEventUtilsToEventDispatcher(win32messageHandler);
+//
 win32messageHandler.uniqueOn=function(event,cb){
 	if(!eventcblist[event])eventcblist[event]=[];
 	if(!eventcblist[event].includes(cb)){
@@ -2056,25 +2057,14 @@ goodies.win32messageHandler=win32messageHandler;
 
 		}
 		win32messageHandler.conditionalOnce('newListener',startintervalmsgloop,e=>e==="message");*/
-function oneTimeListen(event,starter,remover){
-	var c=e=>e===event;
-	function beginEventLoop(){
-		var x=starter();
-		win32messageHandler.conditionalOnce('removeListener',(events,listener)=>{
-			if(remover(x))
-				win32messageHandler.conditionalOnce('newListener',beginEventLoop,c);
-		},(events)=>events==event&&win32messageHandler.listenerCount(event)==0);
 
-	}
-	win32messageHandler.conditionalOnce('newListener',beginEventLoop,c);
-}
 function typePointerBuffer(p,t){
 	var load=Buffer.allocUnsafe(8);
 	load.writeBigUint64LE(BigInt(p));
 	load.type=t;
 	return load;
 }
-oneTimeListen("message",_=>setInterval(_=>{
+win32messageHandler.oneTimeListen("message",_=>setInterval(_=>{
 	var i=0;
 	//Don't use GetMessage, it blocks making node unable to do anything else!
 	while(current.PeekMessageA(goodies.MSG.ref(),0,0,0,constants.styles.PM_REMOVE)){
@@ -2090,14 +2080,18 @@ var keyHandler_LL=ffi.Callback(...wintypes.fn.Hookproc,(nCode,wParam,lParam)=>{
 	return obj.defaultPrevent?1:current.CallNextHookEx(goodies._WH_KEYBOARD_LL_storage[0], nCode, wParam, lParam);
 });
 
-oneTimeListen("WH_KEYBOARD_LL",_=>{
+win32messageHandler.oneTimeListen("WH_KEYBOARD_LL",_=>{
 	const  WH_KEYBOARD_LL=13;
-	var stopgarbageColection=[];//Yes this is as ugly as it looks.
+	var stopgarbageColection=[];//we save the value from SetWindowsHookExA ""
 	goodies._WH_KEYBOARD_LL_storage=stopgarbageColection
 	var callback=keyHandler_LL;
 	stopgarbageColection.push(current.SetWindowsHookExA(WH_KEYBOARD_LL, keyHandler_LL, 0, 0));
 	stopgarbageColection.push(callback);
-	return stopgarbageColection;},([HHandle,cb])=>{current.UnhookWindowsHookEx(HHandle);goodies._WH_KEYBOARD_LL_storage=[];return true;})
+	return stopgarbageColection;},([HHandle,cb])=>{
+		current.UnhookWindowsHookEx(HHandle);
+		goodies._WH_KEYBOARD_LL_storage=[];
+		return true;});
+
 
 goodies.CreateWindowExA=errorHandling(current.CreateWindowExA,/*isZero*/nonZero,"CreateWindowExA")
 goodies.RegisterClassA=errorHandling(current.RegisterClassA,/*isZero*/nonZero,"RegisterClassA")
@@ -2171,14 +2165,68 @@ constants.ShowWindow={
 	SW_SHOWDEFAULT:10,
 	SW_FORCEMINIMIZE:11
 }
+
+const MOD_ALT = 0x0001;
+const MOD_NOREPEAT = 0x4000;
+const MOD_CONTROL = 0x2;
+const MOD_SHIFT = 0x4;
+const MOD_WIN = 0x8;
+constants.modifiers={
+	MOD_ALT,MOD_NOREPEAT,MOD_CONTROL,MOD_SHIFT
+}
+function stringToFlagsParser(de,pos,neg){
+		return str=>str.split('').reduce((a,b)=>(a|(pos[b]))&~neg[b],de)
+	} 
+var hotkeyflagparser=stringToFlagsParser(MOD_NOREPEAT,{"^":MOD_CONTROL,"#":8,"!":MOD_ALT,"+":MOD_SHIFT},{"?":MOD_NOREPEAT});
+
+win32messageHandler.hotkeyArray=[];
+	win32messageHandler.hotkeyArray.holes=[];
+	function onhotkey(lParam,hotkeyID){
+		console.log("Hello, does this even get executed?")
+		var c=constants.macros.HIWORD(lParam)
+		var str=`${c&MOD_CONTROL?"{Control Up}":""}${c&MOD_SHIFT?"{Shift Up}":""}${c&MOD_ALT?"{Alt Up}":""}${c&MOD_WIN?"{Windows Up}":""}`
+		if(str.length>0)
+		goodies.sendInputAhkSync(str);
+		win32messageHandler.emit(win32messageHandler.hotkeyArray[hotkeyID],lParam);
+	}
+	win32messageHandler.on("WM_HOTKEY",onhotkey);
+	win32messageHandler.oneTimeListen("WM_HOTKEY:^b",([str])=>{
+		var [_,str2,str3]=str.match(/:([\^#?+!]+)([A-z]+)$/);
+		var i,wVk;
+		if(win32messageHandler.hotkeyArray.holes.length>0){win32messageHandler.hotkeyArray[i=win32messageHandler.hotkeyArray.holes.pop()]=str;
+		}
+		else i=win32messageHandler.hotkeyArray.push(str)-1;
+		if(str3.length==1){
+			let u=str3.toUpperCase().charCodeAt();
+			wVk=u;//if not in 0x30<u<0x59 what else can we do anyway, throw an error?
+		}else{
+			wVk=Object.entries(key).find(([k,v])=>new RegExp(str3,'i').test(k))[1];
+		}
+		if (current.RegisterHotKey(0, i, hotkeyflagparser(str2), wVk)) {
+			console.log("Hotkey "+str2+str3+" registered\n");
+		};
+		return i;
+	},id=>{
+		if(id==win32messageHandler.hotkeyArray.length){
+		win32messageHandler.hotkeyArray.pop()
+	}else{
+		win32messageHandler.hotkeyArray.holes.push(id)
+		delete win32messageHandler.hotkeyArray[id];
+	}
+		current.UnregisterHotKey(id);
+	});
+
 goodies.createWindow=function createWindow(params){
 	var window=new events();
+	require('./eventUtils.js').addEventUtilsToEventDispatcher(window);
+
 	var WindowProc=ffi.Callback(...wintypes.fn.WNDPROC,
 		(hwnd, uMsg, wParam, lParam) => {
 			//console.log('WndProc callback',winapi.msg[uMsg],uMsg.toString(16),"wParam:",wParam,"lParam:",ref.address(lParam));
 			let result = 0;
 			var obj={hwnd,wParam,lParam};
 			window.emit("message",{uMsg,...obj});
+			console.log(constants.msg[uMsg]||uMsg)
 			window.emit(constants.msg[uMsg]||uMsg,obj);
 			if(obj.preventDefaulted){
 				result=obj.result;
@@ -2225,6 +2273,42 @@ goodies.createWindow=function createWindow(params){
 	}else{
 		console.error("Register Class Failed User32/RegisterClassEx")
 	}	
+	window.hotkeyArray=[];
+	window.hotkeyArray.holes=[];
+	function onhotkey(lParam,hotkeyID){
+		console.log("Hello, does this even get executed?")
+		var c=constants.macros.HIWORD(lParam)
+		var str=`${c&MOD_CONTROL?"{Control Up}":""}${c&MOD_SHIFT?"{Shift Up}":""}${c&MOD_ALT?"{Alt Up}":""}${c&MOD_WIN?"{Windows Up}":""}`
+		if(str.length>0)
+		goodies.sendInputAhkSync(str);
+		window.emit(window.hotkeyArray[hotkeyID],lParam);
+	}
+	window.on("WM_HOTKEY",onhotkey);
+	window.oneTimeListen("WM_HOTKEY:^b",([str])=>{
+		var [str2,str3]=str.match(/:([\^#?+!]+)([A-z]+)$/);
+		var i,wVk;
+		if(window.hotkeyArray.holes.length>0){window.hotkeyArray[i=window.hotkeyArray.holes.pop()]=str;
+		}
+		else i=window.hotkeyArray.push(str)-1;
+		if(str3.length==1){
+			let u=str3.toUpperCase().charCodeAt();
+			wVk=u;//if not in 0x30<u<0x59 what else can we do anyway, throw an error?
+		}else{
+			wVk=Object.entries(key).find(([k,v])=>new RegExp(str3,'i').test(k))[1];
+		}
+		if (current.RegisterHotKey(hwnd, i, hotkeyflagparser(str2), wVk)) {
+			console.log("Hotkey "+str2+str3+" registered\n");
+		};
+		return i;
+	},id=>{
+		if(id==window.hotkeyArray.length){
+		window.hotkeyArray.pop()
+	}else{
+		window.hotkeyArray.holes.push(id)
+		delete window.hotkeyArray[id];
+	}
+		current.UnregisterHotKey(id);
+	});
 	return window;
 }
 goodies.typePointerBuffer=typePointerBuffer;
@@ -2414,6 +2498,7 @@ goodies.sendInputAhk=async function sendInputAhk(ahktext){
 		}
 	},null);
 }
+goodies.sendInputAhkSync=ahktext=>goodies.sendInput(ahkformat(ahktext).flat().map(_=>_.ref()));
 var winapi={ffi,goodies,constants,gdi32,kernel32,ref,Union,Struct:StructType,Array:ArrayType};
 
 

@@ -21,7 +21,22 @@ eventdispatcher.pcondintionalOnce=util.promisify(function(event,condition,cb){
 return this.conditionalOnce(event,(...args)=>cb(null,args),condition)
 });
 
+eventdispatcher.oneTimeListen=function oneTimeListen(event,starter,remover){
+	if(typeof event!=="function"){
+	var c=e=>e===event;
+	}else{
+	c=event
+	}
+	function beginEventLoop(){
+		var x=starter(arguments);
+		eventdispatcher.conditionalOnce('removeListener',(events,listener)=>{
+			if(remover(x))
+				eventdispatcher.conditionalOnce('newListener',beginEventLoop,c);
+		},(events)=>events==event&eventdispatcher.listenerCount(event)==0);
 
+	}
+	eventdispatcher.conditionalOnce('newListener',beginEventLoop,c);
+}
 
 
 }
