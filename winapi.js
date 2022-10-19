@@ -2432,7 +2432,7 @@ function generatekey(keys2generate,up=false,extended=false) {
 		wScan=k;
 		dwFlags|=KEYEVENTF_UNICODE;
 		}
-	} if(t=keys2generate.match(/U\+([A-Fa-f0-9]+)/)){
+	} else if(t=keys2generate.match(/U\+([A-Fa-f0-9]+)/)){
 		wVk=0;
 		wScan=parseInt(t[1],16)
 		dwFlags|=KEYEVENTF_UNICODE;
@@ -2446,6 +2446,7 @@ function generatekey(keys2generate,up=false,extended=false) {
 	if(extended){
 		dwFlags|=KEYEVENT_EXTENDEDKEY;
 	}
+	//console.log(keys2generate,wVk,dwFlags,wScan)
 	return new wintypes.INPUT({type:INPUT_KEYBOARD,DUMMYUNIONNAME:{ki:{wVk,dwFlags,wScan}}});
 }
 function bracketParse(key,command) {
@@ -2482,8 +2483,10 @@ function ahkformat(ahktext){
 		return [left,index];
 	},[[],0])[0]//.map(_=>_.ref());
 }
+goodies.ahkformat=ahkformat;
 goodies.sendInput=sendInput;
 function sendInput(arr){
+	//console.log("sendInput is being sent",arr)
 	return winapi.goodies.errorHandling(current.SendInput,_=>_!==arr.length,"sendInput")(arr.length,Buffer.concat(arr),wintypes.INPUT.size);
 }
 
