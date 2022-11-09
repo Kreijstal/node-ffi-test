@@ -64,15 +64,17 @@ function flattenObject(o, prefix = '', result = {}, keepNull = true) {
 }
 function StructType(){
 	function toJSONrec(){
-		return Object.entries(this._toJSON()).map(([k,v])=>[k,(v.toJSON)?v.toJSON():v])
+		return Object.entries(this.__proto__.__proto__.toJSON.call(this)).map(([k,v])=>[k,(v.toJSON)?v.toJSON():v])
 	}
 	var obj=Struct(...arguments);
-	obj.prototype._toJSON=obj.prototype.toJSON
-	obj.prototype.toJSON=toJSONrec;
-	obj.prototype.fromObject=function(d){
+	var someproto=Object.create(Object.getPrototypeOf(obj.prototype))
+	someproto.toJSON=toJSONrec;
+	someproto.fromObject=function(d){
 		//var l=this;
 		Object.entries(flattenObject(d)).forEach(([k,v])=>setByString(this,k,v))
 	}
+	Object.setPrototypeOf(obj.prototype,someproto)
+	obj.defineProperties=(_=>Object.entries(_).forEach(([k,v])=>obj.defineProperty(k,v)));
 	return obj;
 }
 function ArrayType(){
@@ -137,6 +139,7 @@ var wintypes=new Proxy({},{
 	}
 });
 
+
 wintypes.WCHAR=wintypes.WSTR= ref.types.wchar_t;
 wintypes.WCH=wintypes.WSTR;
 wintypes.NWPSTR=wintypes.PWCHAR;
@@ -160,7 +163,23 @@ wintypes.DPI_AWARENESS_CONTEXT = wintypes.HANDLE;
 wintypes.COLORREF = wintypes.DWORD;
 wintypes.POINTER_INPUT_TYPE=wintypes.DWORD;
 wintypes.ACCESS_MASK=wintypes.DWORD;
-
+wintypes.OLECHAR=wintypes.CHAR;
+wintypes.LPOLESTR=ref.types.CString;
+/*typedef struct _GUID {
+    unsigned long  Data1;
+    unsigned short Data2;
+    unsigned short Data3;
+    unsigned char  Data4[ 8 ];
+} GUID;*/
+wintypes.GUID=StructType({
+	Data1:wintypes.ULONG,
+	Data2:wintypes.USHORT,
+	Data3:wintypes.USHORT,
+	Data4:ArrayType(wintypes.UCHAR,8)
+});
+wintypes.CLSID=wintypes.GUID;
+wintypes.IID=wintypes.GUID;
+wintypes.FMTID=wintypes.GUID;
 wintypes.RECT=wintypes.RECTL=StructType({
 	left:wintypes.LONG,
 	top:wintypes.LONG,
@@ -427,7 +446,38 @@ fn.Hookproc = [wintypes.LRESULT,[ref.types.int,wintypes.WPARAM,wintypes.LPARAM]]
 fn.ThreadProc = [wintypes.DWORD, [wintypes.LPVOID]];
 fn.EnumWindowsProc = [wintypes.BOOL,[wintypes.HWND,wintypes.LPARAM]];
 fn.Sendasyncproc = [wintypes.VOID, [wintypes.HWND,wintypes.UINT,wintypes.ULONG_PTR,wintypes.LRESULT]];
-Object.keys(fn).forEach(_=>{wintypes[_]=wintypes.PVOID});
+var cftype = function(rtype,args){return {
+  size: ref.sizeof.pointer,
+  alignment: ref.alignof.pointer,
+  rtype,
+  name:`(${args.map(a=>a.name).join(',')}) -> ${rtype.name}`,
+  ffi_type:ffi.FFI_TYPES.pointer,
+  args,
+  indirection: 1,
+  get: function get (buf, offset) {
+    const _buf = ref.readPointer(buf, offset)
+    if (ref.isNull(_buf)) {
+      return null;
+    }
+    return ffi.ForeignFunction(_buf,rtype,args);
+  },
+  set: function set (buf, offset, val) {
+    let _buf
+    if (Buffer.isBuffer(val)) {
+      _buf = val;
+    } else {
+      // assume fn
+      _buf = ffi.Callback(rtype,args,val);
+	  val._buf=_buf;//make lifetime valid as long as val is valid.
+    }
+    return ref.writePointer(buf, offset, _buf);
+  }
+}
+}
+Object.entries(fn).forEach(([k,v],i)=>{
+//	console.log(k,v);
+	wintypes[k]=cftype(...v)
+});
 wintypes.THREAD_START_ROUTINE=wintypes.ThreadProc;
 wintypes.WNDENUMPROC=wintypes.EnumWindowsProc;
 wintypes.HOOKPROC=wintypes.Hookproc;
@@ -509,12 +559,32 @@ wintypes.NMHDR=StructType({hwndFrom:wintypes.HWND,idFrom:wintypes.UINT_PTR,code:
 wintypes.CLIPBOARDFORMAT=StructType({nmhdr:wintypes.NMHDR,cf:wintypes.DWORD})
 wintypes.GUITHREADINFO=StructType({cbSize:wintypes.DWORD,flags:wintypes.DWORD,hwndActive:wintypes.HWND,hwndFocus:wintypes.HWND,hwndCapture:wintypes.HWND,hwndMenuOwner:wintypes.HWND,hwndMoveSize:wintypes.HWND,hwndCaret:wintypes.HWND,rcCaret:wintypes.RECT})
 //createWinapiPointers();
-
+//C style Interfaces, thanks Windows
+//Unkknwnbase.h
+//we must use the Progressive API
+wintypes.IUnknown=StructType()
+var IUnknownVtbl={
+	QueryInterface:[wintypes.HRESULT,[wintypes.REFIID,wintypes.PPVOID]],
+	AddRef:[wintypes.ULONG,[]],
+	Release:[wintypes.ULONG,[]],
+}
+//ShObjdl_core.h
+var IShellLinkWVtbl={
+    
+}
 wintypes.fn=fn;
 var winterface={}
 winterface.gdi32= {
 	TextOutA:[wintypes.BOOL,[wintypes.HDC,ref.types.int,ref.types.int,wintypes.LPCSTR,ref.types.int]]
 };
+
+winterface.ole32={
+	CoInitialize:[wintypes.HRESULT,[wintypes.LPVOID]],
+	CLSIDFromProgID:[wintypes.HRESULT,[wintypes.LPOLESTR,wintypes.LPCLSID]],
+//	CoCreateInstance:
+
+
+}
 //https://github.com/deskbtm/win32-ffi/blob/master/lib/cpp/kernel32/process_threads_api_fns.ts
 //https://github.com/waitingsong/node-win32-api/blob/HEAD/packages/win32-api/src/lib/kernel32/api.ts
 var kernel32extract=[
@@ -524,6 +594,8 @@ var kernel32extract=[
 	{"params":[["hMem","in","HGLOBAL"]],"rtype":"SIZE_T","type":"function","name":"GlobalSize"},
 	{"params":[["hMem","in","HGLOBAL"]],"rtype":"HGLOBAL","type":"function","name":"GlobalFree"}
 ]
+
+
 winterface.Kernel32={...kernel32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype],b.params.map(_=>wintypes[_[2]])];return a;},{}),
 	FormatMessageA: [wintypes.DWORD,  [wintypes.DWORD, wintypes.LPCVOID, wintypes.DWORD, wintypes.DWORD, wintypes.LPSTR, wintypes.DWORD, wintypes.va_list] ],
 	FormatMessageW: [wintypes.DWORD,  [wintypes.DWORD, wintypes.LPCVOID, wintypes.DWORD, wintypes.DWORD, wintypes.LPWSTR, wintypes.DWORD, wintypes.PVOID]  ],
@@ -1374,13 +1446,14 @@ function loadFunctions(pathofdll,functions){
 			objtosave[fname]=ffi.ForeignFunction(dllmem.get(fname),rtype,args);
 		}
 		catch(x){
-			console.log(fname+" couldn't be loaded :(")
+			console.log(fname+" couldn't be loaded :(",x.message)
 		}
 
 	});
 	return objtosave;
 }
 var current=loadFunctions("User32.dll",winterface.User32);
+var ole32=loadFunctions("ole32.dll",winterface.ole32);
 //console.log('current',current)
 
 //var current = ffi.Library("User32.dll", winterface.User32);
@@ -2002,6 +2075,7 @@ function Win32Exception(){
 		ref.NULL);   // arguments)
 	return errorText.deref();
 }
+
 function errorHandling(fn,errcondition,name){
 	return (..._)=>{var result;
 		result=fn(..._);
@@ -2017,6 +2091,7 @@ var events=require('node:events');
 function nonZero(i){return i!==0}
 function isZero(i){return i===0}
 var goodies={}
+goodies.Win32Exception=Win32Exception;
 goodies.errorHandling=errorHandling;
 goodies.MSG=new wintypes.MSG();
 var defaultFcts={message:function(message){
@@ -2071,14 +2146,14 @@ win32messageHandler.oneTimeListen("message",_=>setInterval(_=>{
 		win32messageHandler.emit("message",goodies.MSG);
 	}		
 },0),_=>{clearInterval(_);return true});
-var keyHandler_LL=ffi.Callback(...wintypes.fn.Hookproc,(nCode,wParam,lParam)=>{
+var keyHandler_LL=(nCode,wParam,lParam)=>{
 	//console.log(nCode,"ncode")
 	var load=typePointerBuffer(lParam,ref.refType(wintypes.KBDLLHOOKSTRUCT))
 	var kbldstruct=Object.fromEntries(load.deref().deref().toJSON());
 	var obj={nCode,wParam,...kbldstruct};
 	win32messageHandler.emit("WH_KEYBOARD_LL",obj);
 	return obj.defaultPrevent?1:current.CallNextHookEx(goodies._WH_KEYBOARD_LL_storage[0], nCode, wParam, lParam);
-});
+};
 
 win32messageHandler.oneTimeListen("WH_KEYBOARD_LL",_=>{
 	const  WH_KEYBOARD_LL=13;
@@ -2220,7 +2295,7 @@ goodies.createWindow=function createWindow(params){
 	var window=new events();
 	require('./eventUtils.js').addEventUtilsToEventDispatcher(window);
 
-	var WindowProc=ffi.Callback(...wintypes.fn.WNDPROC,
+	var WindowProc=//ffi.Callback(...wintypes.fn.WNDPROC,
 		(hwnd, uMsg, wParam, lParam) => {
 			//console.log('WndProc callback',winapi.msg[uMsg],uMsg.toString(16),"wParam:",wParam,"lParam:",ref.address(lParam));
 			let result = 0;
@@ -2234,8 +2309,8 @@ goodies.createWindow=function createWindow(params){
 				result = current.DefWindowProcA(hwnd, uMsg, wParam, lParam);
 			//console.info('Sending LRESULT: ' + result) 
 			return result
-		},
-	);
+		};
+	//);
 	window.WindowProc=WindowProc;
 	var wClass=new wintypes.WNDCLASSA();
 	//wClass.cbSize=wClass.ref().byteLength;
@@ -2321,10 +2396,10 @@ goodies.getFocusedHandle=function GetFocusedHandle(){
 	return info.hwndFocus;	
 }
 
-var messagecallback = ffi.Callback(...wintypes.fn.Sendasyncproc, (hWnd,uMsg,dwData,lresult) => {
+var messagecallback = (hWnd,uMsg,dwData,lresult) => {
 	messagecallback.relateddata[dwData-1](null,{hWnd,uMsg,lresult});
 	messagecallback.relateddata.splice(dwData-1,1);
-});
+};
 messagecallback.relateddata=[];
 /**
  * 
@@ -2501,8 +2576,9 @@ goodies.sendInputAhk=async function sendInputAhk(ahktext){
 		}
 	},null);
 }
+goodies.cftype=cftype;
 goodies.sendInputAhkSync=ahktext=>goodies.sendInput(ahkformat(ahktext).flat().map(_=>_.ref()));
-var winapi={ffi,goodies,constants,gdi32,kernel32,ref,Union,Struct:StructType,Array:ArrayType};
+var winapi={ffi,goodies,constants,gdi32,kernel32,ref,Union,Struct:StructType,Array:ArrayType,ole32};
 
 
 winapi.interfaces=winterface;

@@ -32,6 +32,7 @@ var mwin = winapi.goodies.createWindow({
   hMenu: 0,
   hInstance: 0,
   lParam: ref.NULL,
+  swflag:constants.ShowWindow.SW_SHOW
 
 });
 user32.AddClipboardFormatListener(mwin.hwnd);
