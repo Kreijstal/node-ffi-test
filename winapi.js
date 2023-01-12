@@ -4,6 +4,7 @@ var ArrayB =require('ref-array-di')(ref);
 var Struct = require('ref-struct-di')(ref);
 var Union = require('ref-union-di')(ref);
 var util=require("node:util");
+var assert=require('node:assert')
 //Ok this is a mega long file where definitions and helper functions are all in one file together, we can split this file later after most of the bulkwork has been completed
 
 
@@ -64,7 +65,12 @@ function flattenObject(o, prefix = '', result = {}, keepNull = true) {
 }
 function StructType(){
 	function toJSONrec(){
-		return Object.entries(this.__proto__.__proto__.toJSON.call(this)).map(([k,v])=>[k,(v.toJSON)?v.toJSON():v])
+		var that=this;
+		while(that.toJSON==toJSONrec){//find previous JSON definition :)
+			that=that.__proto__;
+		}
+		//assert(this.__proto__.__proto__.toJSON!=toJSONrec,"this shouldn't be the same...")
+		return Object.entries(that.toJSON.call(this)).map(([k,v])=>[k,(v.toJSON)?v.toJSON():v])
 	}
 	var obj=Struct(...arguments);
 	var someproto=Object.create(Object.getPrototypeOf(obj.prototype))
@@ -465,7 +471,9 @@ var cftype = function(rtype,args){return {
     let _buf
     if (Buffer.isBuffer(val)) {
       _buf = val;
-    } else {
+    } else if("_buf" in val){
+	    _buf=val._buf;
+    }else{
       // assume fn
       _buf = ffi.Callback(rtype,args,val);
 	  val._buf=_buf;//make lifetime valid as long as val is valid.
@@ -2146,25 +2154,38 @@ win32messageHandler.oneTimeListen("message",_=>setInterval(_=>{
 		win32messageHandler.emit("message",goodies.MSG);
 	}		
 },0),_=>{clearInterval(_);return true});
-var keyHandler_LL=(nCode,wParam,lParam)=>{
-	//console.log(nCode,"ncode")
+const keyHandler_LL=(nCode,wParam,lParam)=>{
+	//console.log("Low Level keyhandler callback being executed")
 	var load=typePointerBuffer(lParam,ref.refType(wintypes.KBDLLHOOKSTRUCT))
-	var kbldstruct=Object.fromEntries(load.deref().deref().toJSON());
+	//console.log("Low Level keyhandler a")
+	let deref=load.deref();
+	//console.log("Low Level keyhandler b")
+	deref=deref.deref();
+	//console.log("Low Level keyhandler c")
+	let json=deref.toJSON();
+	//console.log("Low Level keyhandler d")
+	var kbldstruct=Object.fromEntries(json);
+	//console.log("Low Level keyhandler e")
 	var obj={nCode,wParam,...kbldstruct};
+	//console.log("Low Level keyhandler before event emit")
 	win32messageHandler.emit("WH_KEYBOARD_LL",obj);
-	return obj.defaultPrevent?1:current.CallNextHookEx(goodies._WH_KEYBOARD_LL_storage[0], nCode, wParam, lParam);
+	//console.log("Low Level keyhandler after event emit")
+	if(!"$codeHandle" in keyHandler_LL){
+		console.log("how do you even call CallNextHookEx, no $code found")
+	}
+	return obj.defaultPrevent?1:current.CallNextHookEx(keyHandler_LL.$codeHandle??0, nCode, wParam, lParam);
 };
 
 win32messageHandler.oneTimeListen("WH_KEYBOARD_LL",_=>{
 	const  WH_KEYBOARD_LL=13;
-	var stopgarbageColection=[];//we save the value from SetWindowsHookExA ""
-	goodies._WH_KEYBOARD_LL_storage=stopgarbageColection
-	var callback=keyHandler_LL;
-	stopgarbageColection.push(current.SetWindowsHookExA(WH_KEYBOARD_LL, keyHandler_LL, 0, 0));
-	stopgarbageColection.push(callback);
-	return stopgarbageColection;},([HHandle,cb])=>{
+	//var stopgarbageColection=[];//we save the value from SetWindowsHookExA ""
+	//goodies._WH_KEYBOARD_LL_storage=stopgarbageColection
+	//var callback=keyHandler_LL;
+	var handle=keyHandler_LL.$codeHandle=current.SetWindowsHookExA(WH_KEYBOARD_LL, keyHandler_LL, 0, 0);
+	//stopgarbageColection.push(callback);
+	return handle;},(HHandle)=>{
 		current.UnhookWindowsHookEx(HHandle);
-		goodies._WH_KEYBOARD_LL_storage=[];
+	        //goodies._WH_KEYBOARD_LL_storage=[];
 		return true;});
 
 

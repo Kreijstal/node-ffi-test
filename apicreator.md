@@ -1,3 +1,9 @@
+## Edit:
+This was before I knew that microsoft provided this information already
+https://github.com/microsoft/win32metadata
+So just ignore everything here.
+
+
 # What is this all about?
 
 This is a guide that explains how to parse windows api to get functions faster
@@ -5952,6 +5958,14 @@ test=await Promise.all(paths.filter(_=>/DESKTOPENUMPROC/i.test(_)).map(extractda
 
 
 ```
+
+Was it all of a waste of time?
+============
+Yes, yes it was, you don't need all of that stuff, just use 
+https://github.com/vadimkotov/winapi-json
+or
+https://github.com/marlersoft/win32json
+both of them are excellent material <3
 
 
 
