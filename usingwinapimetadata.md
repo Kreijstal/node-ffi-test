@@ -286,5 +286,6 @@ wintypes.GUID=StructType({
 wintypes.CLSID=wintypes.GUID;
 wintypes.IID=wintypes.GUID;
 wintypes.FMTID=wintypes.GUID;
-wintypes.GUID(Buffer.from("b9f8ac3e-0f71-11d2-b72c-00c04fb6bd3d".split('-').join(''),"hex"))
+apis['System.Com.json'].Types[32].Name
+wintypes.GUID(Buffer.from(apis['System.Com.json'].Types[32].Guid.split('-').join(''),"hex"))
 ```
