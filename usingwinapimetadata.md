@@ -288,4 +288,61 @@ wintypes.IID=wintypes.GUID;
 wintypes.FMTID=wintypes.GUID;
 apis['System.Com.json'].Types[32].Name
 wintypes.GUID(Buffer.from(apis['System.Com.json'].Types[32].Guid.split('-').join(''),"hex"))
+
+//Creates a type
+//returns a "class"
+function cInterface(objDefinition){
+var interface=StructType();
+function InterfaceStruct(strobject){
+ //is structObj a StructType or an Object
+ if(strobject instanceof interface){
+ this._$struct=structObj;
+ }else{
+ //whether buffer or Object should still work.
+ this._$struct=new interface(strobject);
+ }
+ Object.entries(objDefinition).forEach(([k,v])=>
+ this[k]=function(...args){
+ return this._$struct[k]?.(this.ref(),...args);
+ }
+)
+return this;
+ 
+
+}
+InterfaceStruct.prototype.ref=function(...args){
+return this._$struct.ref(...args)
+}
+Object.setPrototypeOf(InterfaceStruct,interface);
+//console.log("checking properties",InterfaceStruct.size,InterfaceStruct.indirection,'size' in InterfaceStruct,'indirection' in InterfaceStruct)
+InterfaceStruct.get=function(buf,offset){
+const _buf = ref.readPointer(buf, offset)
+    if (ref.isNull(_buf)) {
+      return null;
+    }
+    return new this(_buf);
+}
+InterfaceStruct.set=function(buf,offset,val){
+return interface.set(buf,offset,val._$struct)
+}
+InterfaceStruct.inherit=function(obj){
+return cInterface({...objDefinition,...obj})
+}
+
+//interface.defineProperties
+Object.entries(objDefinition).forEach(([k,v])=>
+
+interface.defineProperty(k,cftype(v[0],[ref.refType(InterfaceStruct),...v[1]]))
+
+)
+
+return InterfaceStruct;
+};
+cInterface(IUnknownVtbl);
+
+var IUnknownVtbl={
+	QueryInterface:[w.wintypes.HRESULT,[w.wintypes.REFIID,w.wintypes.PPVOID]],
+	AddRef:[w.wintypes.ULONG,[]],
+	Release:[w.wintypes.ULONG,[]],
+}
 ```
