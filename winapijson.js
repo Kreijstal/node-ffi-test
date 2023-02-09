@@ -28,6 +28,9 @@ var Union = require('ref-union-di')(ref);
 var ArrayB = require('ref-array-di')(ref);
 var assert = require('node:assert');
 var path = require('node:path');
+var fs = require('node:fs');
+var util = require('node:util');
+
 
 //Should this be optional or something?
 Buffer.prototype._toJSON=Buffer.prototype.toJSON
@@ -93,6 +96,7 @@ function StructType(){
 		//assert(this.__proto__.__proto__.toJSON!=toJSONrec,"this shouldn't be the same...")
 		return Object.entries(that.toJSON.call(this)).map(([k,v])=>[k,(v.toJSON)?v.toJSON():v])
 	}
+	//if(b)b.packed=true; else b={packed:true};
 	var obj=Struct(...arguments);
 	var someproto=Object.create(Object.getPrototypeOf(obj.prototype))
 	someproto.toJSON=toJSONrec;
@@ -134,36 +138,47 @@ ref.types.WCString.set = function set (buf, offset, val) {
 	}
 	return buf.writePointer(_buf, offset);
 };
-var nativehelper = {
-  UInt32: {
-    typeobj: {
-      size: ref.sizeof.uint32,
-      indirection: 1,
-      ffi_type: ffi.FFI_TYPES.uint32
-    },
-    writebuf: "writeUint32LE",
-    readbuf: "readUint32LE",
-  },
-    Int32: {
-    typeobj: {
-      size: ref.sizeof.int32,
-      indirection: 1,
-      ffi_type: ffi.FFI_TYPES.int32
-    },
-    writebuf: "writeInt32LE",
-    readbuf: "readInt32LE",
-  },
+var ntvhlprfun=({size,indirection,alignment,ffi_type})=>({size,indirection,alignment,ffi_type});
+var nativehelper = new Proxy({
     Byte: {
-    typeobj: {
-      size: ref.sizeof.uint8,
-      indirection: 1,
-      ffi_type: ffi.FFI_TYPES.uint8
-    },
+    typeobj: (ntvhlprfun)(ref.types.uint8),
     writebuf: "writeUint8",
     readbuf: "readUint8",
+  },SByte: {
+    typeobj: (ntvhlprfun)(ref.types.int8),
+    writebuf: "writeInt8",
+    readbuf: "readInt8",
+  },Single: {
+    typeobj: (ntvhlprfun)(ref.types.float),
+    writebuf: "writeFloatLE",
+    readbuf: "readFloatLE",
+  },Boolean: {
+    typeobj: (ntvhlprfun)(ref.types.uint8),
+    writebuf: "writeUint8",
+    readbuf: "readUint8",
+  }
+}, {
+  get: (target, prop) => {
+    if (prop in target) {
+      return target[prop];
+    } else {
+      const propLowerCase = prop.toLowerCase();
+      const typeobjExists = propLowerCase in ref.types;
+
+      if (typeobjExists) {
+        const typeobj = (ntvhlprfun)(ref.types[propLowerCase]);
+
+        const writebuf = `write${prop}LE`;
+        const readbuf = `read${prop}LE`;
+
+        if (Buffer.prototype[writebuf] && Buffer.prototype[readbuf]) {
+          target[prop] = { typeobj, writebuf, readbuf };
+          return target[prop];
+        }
+      }
+    }
   },
-  
-}
+});
 
 function longeSTring(a, b) {
   return a.length > b.length ? a : b;
@@ -200,6 +215,9 @@ var wintypes = new Proxy({}, {
     if (name in target) return target[name];
     else if (name.toLowerCase() in ref.types)
       return target[name] = ref.types[name.toLowerCase()]
+    else if (name in nativehelper){
+	  return target[name] = nativehelper[name].typeobj;
+	}
     else if ((arr = name.match(/^[LNS]?P(C?(U?(N?(Z?(Z?(.*)|.*)|.*)|.*)|.*)|.*)/)?.slice(1).filter(_ => this.has(target, _)))?.length | 0 > 0) {
       if ((lname = arr.reduce(longeSTring)) == "STR") {
         return target[name] = ref.types.CString;
@@ -480,7 +498,7 @@ async function requireJSONFiles(dirPath) {
   }
   return jsonarr;
 }
-var apis = await requireJSONFiles("api");
+
 
 function procedureConvertApiFromJSON(apitoconvert) {
   var typesbykind = groupby(apitoconvert.Types, a => a.Kind);
@@ -568,6 +586,7 @@ wintypes.GUID = StructType({
 
 wintypes.Guid=wintypes.IID = wintypes.GUID;
 wintypes.FMTID = wintypes.GUID;
-Object.values(apis).forEach(procedureConvertApiFromJSON)
+var apis = requireJSONFiles("win32json/api");
+apis.then(_=>Object.values(_).forEach(procedureConvertApiFromJSON));
 
 module.exports={lazySet,groupby,_get,_set,ffi,ref,StructType,Union,ArrayType,assert,path,nativehelper,longeSTring,wintypes,methodProxy,CFTypeConstructor,objApiToJSApi,getNestedTypes,getFields,objApiStructToJSStruct,convertApiTypeToJSType,objApiEnumToJSEnum,objApiUnionToJSUnion,objApiArrayToJSArray,fun2Type,convertWinapiInterface2ffi,method2Type,appendDLL,getDll,dll,functions,clsIDs,debug,readdir,requireJSONFiles,apis,procedureConvertApiFromJSON};
