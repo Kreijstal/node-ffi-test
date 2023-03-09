@@ -8,7 +8,7 @@ var util=require("node:util");
 // Define Winapi types according to 
 //  https://msdn.microsoft.com/en-us/library/windows/desktop/aa383751%28v=vs.85%29.aspx
 //var wintypes = {};
-function longeSTring(a, b) {
+/*function longeSTring(a, b) {
 	return a.length > b.length ? a : b;
 }
 //There are so many types that it's better to lazily dynamically generate them because otherwise the list would be just too long.
@@ -68,7 +68,7 @@ wintypes.LPOLESTR=ref.types.CString;
     unsigned short Data2;
     unsigned short Data3;
     unsigned char  Data4[ 8 ];
-} GUID;*/
+} GUID;
 wintypes.GUID=StructType({
 	Data1:wintypes.ULONG,
 	Data2:wintypes.USHORT,
@@ -584,11 +584,11 @@ winterface.Kernel32={...kernel32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rty
 	TlsSetValue: [wintypes.BOOL, [wintypes.DWORD, wintypes.LPVOID]],
 	// UpdateProcThreadAttribute: [BOOL, [LPPROC_THREAD_ATTRIBUTE_LIST, DWORD, DWORD_PTR, PVOID, SIZE_T, PVOID, PSIZE_T]],
 	// GenerateConsoleCtrlEvent: [wintypes.BOOL, [wintypes.DWORD, wintypes.DWORD] ],
-	/** err code: https://msdn.microsoft.com/zh-cn/library/windows/desktop/ms681381(v=vs.85).aspx */
+	/** err code: https://msdn.microsoft.com/zh-cn/library/windows/desktop/ms681381(v=vs.85).aspx 
 	GetLastError: [wintypes.DWORD, [] ],
 	/** retrive value from buf by ret.ref().readUInt32() */
 	//GetModuleHandleW: [wintypes.HMODULE, [wintypes.LPCTSTR] ],
-	/** flags, optional LPCTSTR name, ref hModule */
+	/** flags, optional LPCTSTR name, ref hModule 
 	//GetModuleHandleExW: [wintypes.BOOL, [wintypes.DWORD, wintypes.LPCTSTR, wintypes.HMODULE] ],
 	//GetProcessHeaps: [wintypes.DWORD, [wintypes.DWORD, wintypes.PHANDLE] ],
 	// GetSystemTimes: [wintypes.BOOL, [wintypes.PFILETIME, wintypes.PFILETIME, wintypes.PFILETIME] ],
@@ -733,7 +733,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 			CreateWindowStationW: [wintypes.HWINSTA, [wintypes.LPCWSTR, wintypes.DWORD, wintypes.ACCESS_MASK, wintypes.LPSECURITY_ATTRIBUTES]],
 			CreateWindowW: [wintypes.VOID, [wintypes.LPCTSTR, wintypes.LPCTSTR, wintypes.DWORD, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID]],
 			DefDlgProcW: [wintypes.LRESULT, [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]],
-			DeferWindowPos: [wintypes.HDWP, [wintypes.HDWP, wintypes.HWND, wintypes.HWND, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.UINT]],*/
+			DeferWindowPos: [wintypes.HDWP, [wintypes.HDWP, wintypes.HWND, wintypes.HWND, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.UINT]],
 	DefFrameProcA: [wintypes.LRESULT, [wintypes.HWND, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]],
 	DefFrameProcW: [wintypes.LRESULT, [wintypes.HWND, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]],
 	DefMDIChildProcA: [wintypes.LRESULT, [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]],
@@ -786,7 +786,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	//DrawText: [wintypes.INT, [wintypes.HDC, wintypes.LPCTSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT]],
 	DrawTextA: [wintypes.INT, [wintypes.HDC, wintypes.LPCSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT]],/*
 			DrawTextExA: [wintypes.INT, [wintypes.HDC, wintypes.LPSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT, wintypes.LPDRAWTEXTPARAMS]],
-			DrawTextExW: [wintypes.INT, [wintypes.HDC, wintypes.LPWSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT, wintypes.LPDRAWTEXTPARAMS]],*/
+			DrawTextExW: [wintypes.INT, [wintypes.HDC, wintypes.LPWSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT, wintypes.LPDRAWTEXTPARAMS]],
 	DrawTextW: [wintypes.INT, [wintypes.HDC, wintypes.LPCWSTR, wintypes.INT, wintypes.LPRECT, wintypes.UINT]],
 	//dEmptyClipboard: [wintypes.BOOL, []],
 	EnableMenuItem: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.UINT]],
@@ -959,7 +959,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 			GetPointerPenInfo: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_PEN_INFO]],
 			GetPointerPenInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_PEN_INFO]],
 			GetPointerTouchInfo: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_TOUCH_INFO]],
-			GetPointerTouchInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_TOUCH_INFO]],*/
+			GetPointerTouchInfoHistory: [wintypes.BOOL, [wintypes.UINT32, wintypes.UINT32, wintypes.POINTER_TOUCH_INFO]],
 	GetPointerType: [wintypes.BOOL, [wintypes.UINT32, wintypes.POINTER_INPUT_TYPE]],
 	//dGetPriorityClipboardFormat: [wintypes.INT, [wintypes.UINT, wintypes.INT]],
 	GetProcessDefaultLayout: [wintypes.BOOL, [wintypes.DWORD]],
@@ -1156,7 +1156,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	PtInRect: [wintypes.BOOL, [wintypes.RECT, wintypes.POINT]],/*
 			QueryDisplayConfig: [wintypes.LONG, [wintypes.UINT32, wintypes.UINT32, wintypes.DISPLAYCONFIG_PATH_INFO, wintypes.UINT32, wintypes.DISPLAYCONFIG_MODE_INFO, wintypes.DISPLAYCONFIG_TOPOLOGY_ID]],
 			RealChildWindowFromPoint: [wintypes.HWND, [wintypes.HWND, wintypes.POINT]],
-			RealGetWindowClassW: [wintypes.UINT, [wintypes.HWND, wintypes.LPWSTR, wintypes.UINT]],*/
+			RealGetWindowClassW: [wintypes.UINT, [wintypes.HWND, wintypes.LPWSTR, wintypes.UINT]],
 	RedrawWindow: [wintypes.BOOL, [wintypes.HWND, wintypes.RECT, wintypes.HRGN, wintypes.UINT]],
 	RegisterClassExA: [wintypes.ATOM, [wintypes.PWNDCLASSEXA]],
 	RegisterClassExW: [wintypes.ATOM, [wintypes.PWNDCLASSEXW]],
@@ -1164,12 +1164,12 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	//dRegisterClipboardFormatA: [wintypes.UINT, [wintypes.LPCSTR]],
 	//dRegisterClipboardFormatW: [wintypes.UINT, [wintypes.LPCWSTR]],
 	/*	RegisterDeviceNotificationA: [wintypes.HDEVNOTIFY, [wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD]],
-			RegisterDeviceNotificationW: [wintypes.HDEVNOTIFY, [wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD]],*/
+			RegisterDeviceNotificationW: [wintypes.HDEVNOTIFY, [wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD]],
 	RegisterHotKey: [wintypes.BOOL, [wintypes.HWND, wintypes.INT, wintypes.UINT, wintypes.UINT]],
 	RegisterPointerDeviceNotifications: [wintypes.BOOL, [wintypes.HWND, wintypes.BOOL]],/*
 			RegisterPointerInputTarget: [wintypes.BOOL, [wintypes.HWND, wintypes.POINTER_INPUT_TYPE]],
 			RegisterPointerInputTargetEx: [wintypes.BOOL, [wintypes.HWND, wintypes.POINTER_INPUT_TYPE, wintypes.BOOL]],
-			RegisterPowerSettingNotification: [wintypes.HPOWERNOTIFY, [wintypes.HANDLE, wintypes.LPCGUID, wintypes.DWORD]],*/
+			RegisterPowerSettingNotification: [wintypes.HPOWERNOTIFY, [wintypes.HANDLE, wintypes.LPCGUID, wintypes.DWORD]],
 	RegisterRawInputDevices: [wintypes.BOOL, [wintypes.PCRAWINPUTDEVICE, wintypes.UINT, wintypes.UINT]],
 	RegisterShellHookWindow: [wintypes.BOOL, [wintypes.HWND]],
 	RegisterSuspendResumeNotification: [wintypes.HPOWERNOTIFY, [wintypes.HANDLE, wintypes.DWORD]],
@@ -1273,7 +1273,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	SetWindowsHookExW: [wintypes.HHOOK, [wintypes.INT, wintypes.HOOKPROC, wintypes.HINSTANCE, wintypes.DWORD]],
 	SetWindowTextA: [wintypes.BOOL, [wintypes.HWND, wintypes.LPCSTR]],
 	SetWindowTextW: [wintypes.BOOL, [wintypes.HWND, wintypes.LPCWSTR]],
-	//SetWinEventHook: [wintypes.HWINEVENTHOOK, [wintypes.DWORD, wintypes.DWORD, wintypes.HMODULE, wintypes.WINEVENTPROC, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD]],*/
+	//SetWinEventHook: [wintypes.HWINEVENTHOOK, [wintypes.DWORD, wintypes.DWORD, wintypes.HMODULE, wintypes.WINEVENTPROC, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD]],
 	ShowCaret: [wintypes.BOOL, [wintypes.HWND]],
 	ShowCursor: [wintypes.INT, [wintypes.BOOL]],
 	ShowOwnedPopups: [wintypes.BOOL, [wintypes.HWND, wintypes.BOOL]],
@@ -1302,7 +1302,7 @@ winterface.User32= {...user32extract.reduce((a,b)=>{a[b.name]=[wintypes[b.rtype]
 	ToUnicodeEx: [wintypes.INT, [wintypes.UINT, wintypes.UINT, wintypes.BYTE, wintypes.LPWSTR, wintypes.INT, wintypes.UINT, wintypes.HKL]],/*
 			TrackMouseEvent: [wintypes.BOOL, [wintypes.LPTRACKMOUSEEVENT]],
 			TrackPopupMenu: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.INT, wintypes.INT, wintypes.INT, wintypes.HWND, wintypes.RECT]],
-			TrackPopupMenuEx: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.INT, wintypes.INT, wintypes.HWND, wintypes.LPTPMPARAMS]],*/
+			TrackPopupMenuEx: [wintypes.BOOL, [wintypes.HMENU, wintypes.UINT, wintypes.INT, wintypes.INT, wintypes.HWND, wintypes.LPTPMPARAMS]],
 	TranslateAcceleratorA: [wintypes.INT, [wintypes.HWND, wintypes.HACCEL, wintypes.LPMSG]],
 	TranslateAcceleratorW: [wintypes.INT, [wintypes.HWND, wintypes.HACCEL, wintypes.LPMSG]],
 	TranslateMDISysAccel: [wintypes.BOOL, [wintypes.HWND, wintypes.LPMSG]],
@@ -1374,7 +1374,7 @@ constants.msgbox={
 	MB_RETRYCANCEL : 0x00000005,
 	// #if(WINVER >= 0x0500)
 	MB_CANCELTRYCONTINUE : 0x00000006,
-	// #endif /* WINVER >= 0x0500 */
+	// #endif /* WINVER >= 0x0500 
 	MB_ICONHAND,
 	MB_ICONQUESTION : 0x00000020,
 	MB_ICONEXCLAMATION,
@@ -1383,7 +1383,7 @@ constants.msgbox={
 	MB_USERICON : 0x00000080,
 	MB_ICONWARNING : MB_ICONEXCLAMATION,
 	MB_ICONERROR : MB_ICONHAND,
-	// #endif /* WINVER >= 0x0400 */
+	// #endif /* WINVER >= 0x0400 
 	MB_ICONINFORMATION : MB_ICONASTERISK,
 	MB_ICONSTOP : MB_ICONHAND,
 	MB_DEFBUTTON1 : 0x00000000,
@@ -1391,13 +1391,13 @@ constants.msgbox={
 	MB_DEFBUTTON3 : 0x00000200,
 	// #if(WINVER >= 0x0400)
 	MB_DEFBUTTON4 : 0x00000300,
-	// #endif /* WINVER >= 0x0400 */
+	// #endif /* WINVER >= 0x0400 
 	MB_APPLMODAL : 0x00000000,
 	MB_SYSTEMMODAL : 0x00001000,
 	MB_TASKMODAL : 0x00002000,
 	// #if(WINVER >= 0x0400)
 	MB_HELP : 0x00004000, // Help Butto,
-	// #endif /* WINVER >= 0x0400 */
+	// #endif /* WINVER >= 0x0400 
 	MB_NOFOCUS : 0x00008000,
 	MB_SETFOREGROUND : 0x00010000,
 	MB_DEFAULT_DESKTOP_ONLY : 0x00020000,
@@ -1405,7 +1405,7 @@ constants.msgbox={
 	MB_TOPMOST : 0x00040000,
 	MB_RIGHT : 0x00080000,
 	MB_RTLREADING : 0x00100000,
-	// #endif /* WINVER >= 0x0400 */
+	// #endif /* WINVER >= 0x0400 
 	// #ifdef _WIN32_WINNT
 	// #if(_WIN32_WINNT >= 0x0400)
 	//  MB_SERVICE_NOTIFICATION : 0x00200000,
@@ -1922,6 +1922,8 @@ constants.styles.WS_TILEDWINDOW = constants.styles.WS_OVERLAPPED | constants.sty
 //#define MAKELANGID(p, s) ((((WORD) (s)) << 10) | (WORD) (p)) 
 //var lang={};
 //macro functions
+*/
+var constants={};
 function MAKELANGID(p,s){
 	return s<<10|p;
 }
@@ -1941,6 +1943,7 @@ function LOBYTE(i){
 var macros={MAKELANGID,LOWORD,HIWORD};
 constants.macros=macros;
 
+/*
 const FORMAT_MESSAGE_ALLOCATE_BUFFER=0x100;
 const FORMAT_MESSAGE_ARGUMENT_ARRAY=0x2000;
 const FORMAT_MESSAGE_FROM_HMODULE=0x800;
@@ -1954,7 +1957,11 @@ const LANG_NEUTRAL = 0x00
 const SUBLANG_NEUTRAL = 0x00
 const SUBLANG_DEFAULT = 0x01
 const LANG_ENGLISH = 0x09
-const SUBLANG_ENGLISH_US = 0x01
+const SUBLANG_ENGLISH_US = 0x01*/
+
+//winapicore.functions.FormatMessageA.type.Params[0].Type.Name "FORMAT_MESSAGE_OPTIONS"
+//let formatmessageconstants=winapicore.wintypes[winapicore.functions.FormatMessageA.type.Params[0].Type.Name].values
+//winapicore.wintypes.UInt32.constants.LANG_NEUTRAL
 function Win32Exception(){
 	var error=kernel32.GetLastError();
 	var errorText=Buffer.allocUnsafe(8);

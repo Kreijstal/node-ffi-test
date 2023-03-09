@@ -9,15 +9,13 @@
   "author": "Kreijstal",
   "license": "GPL-3.0-or-later",
   "dependencies": {
-    "ffi-napi": "^4.0.3",
-    "ref-array-di": "^1.2.2",
-    "ref-napi": "^3.0.3",
-    "ref-struct-di": "^1.1.1",
-    "ref-union-di": "^1.0.1"
+    "lodash.get": "^4.4.2",
+    "lodash.groupby": "^4.6.0",
+    "lodash.set": "^4.3.2"
   },
   "devDependencies": {
-	"html-to-text": "^8.2.1",
-    "markdown-it": "^13.0.1"  
+    "html-to-text": "^8.2.1",
+    "markdown-it": "^13.0.1"
   },
   "repository": {
     "type": "git",

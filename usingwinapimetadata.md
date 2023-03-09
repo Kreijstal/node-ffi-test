@@ -332,7 +332,7 @@ return cInterface({...objDefinition,...obj})
 //interface.defineProperties
 Object.entries(objDefinition).forEach(([k,v])=>
 
-interface.defineProperty(k,cftype(v[0],[ref.refType(InterfaceStruct),...v[1]]))
+interface.defineProperty(k,CFTypeConstructor(v[0],[ref.refType(InterfaceStruct),...v[1]]))
 
 )
 
