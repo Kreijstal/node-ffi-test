@@ -1,7 +1,7 @@
 var winapicore=require('./winapijson.js')
 var {ffi,ref, ArrayType,Struct, Union,wintypes}=winapicore;
 var util=require("node:util");
-
+var {performance}=require("node:perf_hooks")
 var constants={};
 function MAKELANGID(p,s){
 	return s<<10|p;
@@ -34,10 +34,20 @@ var fnproxy=new Proxy({},{
 	get: function(target, name) {
     if (name in target) return target[name];
 	if (name in winapicore.functions){
-		if(winapicore.functions[name].type.SetLastError){
+		let fn= winapicore.functions[name].deref();
+		var wat=(..._)=>{
+			var startTime = performance.now()
+
+let res=fn(..._);
+    
+var endTime = performance.now()
+console.log(`Call to ${name} took ${endTime - startTime} milliseconds`)
+			return res;
+			};
+		//if(winapicore.functions[name].type.SetLastError){
+		if(false){//slo?
 			if(name in errorResults){
 				return target[name]=(..._)=>{var result;
-				var wat=winapicore.functions[name].deref();
 		result=wat(..._);
 			if(errorResults[name](result)){
 			var errorText=Win32Exception();
@@ -47,15 +57,14 @@ var fnproxy=new Proxy({},{
 	}
 			}else
 			return target[name]=(..._)=>{var result;
-		result=winapicore.functions[name].deref()(..._);
-
+		result=wat(..._);
 			var errorText=Win32Exception();
 			console.log("function errorMessage:",{name,/*arg:_,result,*/errorText});
 			return result;
 
 	}	
 		}else{
-			return target[name]=winapicore.functions[name].deref();
+			return target[name]=wat
 		}
 	}
     
@@ -67,6 +76,7 @@ var fnproxy=new Proxy({},{
     }
 	
 })
+
 
 function Win32Exception(){
 	var error=winapicore.functions.GetLastError.deref()();
@@ -313,7 +323,7 @@ goodies.createWindow=function createWindow(params){
 	var window=new events();
 	require('./eventUtils.js').addEventUtilsToEventDispatcher(window);
 
-	var WindowProc=winapicore.functions.DefWindowProcA;/*/ffi.Callback(...wintypes.fn.WNDPROC,
+	var WindowProc=
 		(hwnd, uMsg, wParam, lParam) => {
 			console.log("Windows has called WindowProc")
 			//console.log('WndProc callback',winapi.msg[uMsg],uMsg.toString(16),"wParam:",wParam,"lParam:",ref.address(lParam));
@@ -333,7 +343,7 @@ goodies.createWindow=function createWindow(params){
 			console.log("WindowProc returned")
 			return result
 		};
-	*/
+	
 	window.WindowProc=WindowProc;
 	var wClass=new wintypes.WNDCLASSA();
 	//wClass.cbSize=wClass.ref().byteLength;
