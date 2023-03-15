@@ -1,13 +1,14 @@
+function callListeners(target,key,value){
+	if (key in target._callbacks) {
+        target._callbacks[key].forEach(callback => callback(value));
+        delete target._callbacks[key];
+      }
+}
 function lazySet(object, property, someExpensiveComputation) {
   Object.defineProperty(object, property, {
     get() {
-		if(property=="HOT_KEY_MODIFIERS"){
-	  console.log("I have no idea what is going on lazyset, this aint triggering the proxy")
-	  debugger
-	  
-  }
       const actualData = someExpensiveComputation();
-
+	  //callListeners(this,property,actualData);
       Object.defineProperty(this, property, {
         value: actualData,
         writable: true,
@@ -191,38 +192,20 @@ function longeSTring(a, b) {
 //var eventEmitter = new events.EventEmitter();
 var wintypes = new Proxy({}, {
 	 defineProperty: function (target, key, descriptor) {
-		 if(key=="HOT_KEY_MODIFIERS"){
-	  console.log("I have no idea what is going on define")
-	  debugger
-	  
-  }
     if ("value" in descriptor) {
       if (!target.hasOwnProperty("_callbacks")) {
         target._callbacks = {};
       }
-	  console.log("before calling the _callbacks! define")
-      if (key in target._callbacks) {
-        target._callbacks[key].forEach(callback => callback(descriptor.value));
-        delete target._callbacks[key];
-      }
+	   callListeners(target,key,descriptor.value)
     }
     return Object.defineProperty(target, key, descriptor);
   },
   set(target, property, value, receiver) {
-  if(property=="HOT_KEY_MODIFIERS"){
-	  console.log("I have no idea what is going on set")
-	  debugger
-	  
-  }
     if (!(property in target)) {
       if (!target.hasOwnProperty("_callbacks")) {
         target._callbacks = {};
       }
-	  console.log("before calling the _callbacks! set")
-      if (property in target._callbacks) {
-        target._callbacks[property].forEach(callback => callback(value));
-        delete target._callbacks[property];
-      }
+	   callListeners(target,property,value);
     }
     Reflect.set(target, property, value, receiver);
     return true;
@@ -420,7 +403,7 @@ function objApiArrayToJSArray(objApi) {
 
 function fun2Type(E) {
   var r = CFTypeConstructor(convertApiTypeToJSType(E.ReturnType), E.Params.map(a => convertApiTypeToJSType(a.Type)));
-  assert(E.ReturnAttrs.length == 0);
+  //assert(E.ReturnAttrs.length == 0); These are C# attributes, 
   if (E.Platform !== null) {
     console.log(`Loading function ${E.Name} with Platform ${E.Platform}`)
   }
@@ -611,5 +594,5 @@ wintypes.FMTID = wintypes.GUID;
 module.exports={lazySet,groupby,_get,_set,ffi,ref,StructType,Union,ArrayType,assert,path,nativehelper,longeSTring,wintypes,methodProxy,CFTypeConstructor,objApiToJSApi,getNestedTypes,
 getFields,objApiStructToJSStruct,convertApiTypeToJSType,objApiEnumToJSEnum,objApiUnionToJSUnion,objApiArrayToJSArray,fun2Type,
 convertWinapiInterface2ffi,method2Type,appendDLL,getDll,dll,functions,clsIDs,debug,readdir,requireJSONFiles,procedureConvertApiFromJSON,
-//done:apis.then(_=>Object.values(_).forEach(procedureConvertApiFromJSON))
+done:requireJSONFiles("win32json/api").then(_=>Object.values(_).forEach(procedureConvertApiFromJSON))
 };

@@ -37,7 +37,8 @@ var fnproxy=new Proxy({},{
 		if(winapicore.functions[name].type.SetLastError){
 			if(name in errorResults){
 				return target[name]=(..._)=>{var result;
-		result=winapicore.functions[name].deref()(..._);
+				var wat=winapicore.functions[name].deref();
+		result=wat(..._);
 			if(errorResults[name](result)){
 			var errorText=Win32Exception();
 			console.log("function errorMessage:",{name,/*arg:_,result,*/errorText});
@@ -104,11 +105,12 @@ var events=require('node:events');
 var goodies={}
 goodies.Win32Exception=Win32Exception;
 //goodies.errorHandling=errorHandling;
-wintypes.attr("MSG").then(v=>goodies.MSG=v);
+
  //goodies.MSG=new wintypes.MSG();
 var defaultFcts={message:function(message){
 	//	messages.map(_=>{//Performance cost is too great, isn't it amazing?
 	//if(wintypes.msg[message.message]){
+		console.log("message event handler is indeed executed")
 	win32messageHandler.emit(message.message,message.lParam,message.wParam);
 	fnproxy.TranslateMessage(message.ref());
 	fnproxy.DispatchMessageA(message.ref());
@@ -153,7 +155,9 @@ function typePointerBuffer(p,t){
 win32messageHandler.oneTimeListen("message",_=>setInterval(_=>{
 	var i=0;
 	//Don't use GetMessage, it blocks making node unable to do anything else!
+	console.log("message listened",_)
 	while(fnproxy.PeekMessageA(goodies.MSG.ref(),0,0,0,wintypes.PEEK_MESSAGE_REMOVE_TYPE.values.PM_REMOVE)){
+		console.log("THIS IS NOT BEING EXECUTED!!!")
 		win32messageHandler.emit("message",goodies.MSG);
 	}		
 },0),_=>{clearInterval(_);return true});
@@ -254,24 +258,14 @@ function stringToFlagsParser(de,pos,neg){
 	} 
 
 var hotkeyflagparser;
-debugger;
-wintypes.attr("HOT_KEY_MODIFIERS").then(c=>{
-	console.log("this is being executed lol",c)
-hotkeyflagparser=stringToFlagsParser(c.values.MOD_NOREPEAT,{"^":c.values.MOD_CONTROL,"#":8,"!":c.values.MOD_ALT,"+":c.values.MOD_SHIFT},{"?":c.values.MOD_NOREPEAT});
-});
 
-win32messageHandler.hotkeyArray=[];
-	win32messageHandler.hotkeyArray.holes=[];
-	function onhotkey(lParam,hotkeyID){
-		console.log("Hello, does this even get executed?")
-		var c=constants.macros.HIWORD(lParam)
-		var str=`${c&MOD_CONTROL?"{Control Up}":""}${c&MOD_SHIFT?"{Shift Up}":""}${c&MOD_ALT?"{Alt Up}":""}${c&MOD_WIN?"{Windows Up}":""}`
-		if(str.length>0)
-		goodies.sendInputAhkSync(str);
-		win32messageHandler.emit(win32messageHandler.hotkeyArray[hotkeyID],lParam);
-	}
-	winapicore.done.then(_=>win32messageHandler.on(wintypes.UInt32.constants.WM_HOTKEY,onhotkey));
-	
+var done=winapicore.done.then(_=>{
+	goodies.MSG=new wintypes.MSG();
+	hotkeyflagparser=stringToFlagsParser(wintypes.HOT_KEY_MODIFIERS.values.MOD_NOREPEAT,
+	{"^":wintypes.HOT_KEY_MODIFIERS.values.MOD_CONTROL,"#":8,
+	"!":wintypes.HOT_KEY_MODIFIERS.values.MOD_ALT,"+":wintypes.HOT_KEY_MODIFIERS.values.MOD_SHIFT},
+	{"?":wintypes.HOT_KEY_MODIFIERS.values.MOD_NOREPEAT});
+	win32messageHandler.on(wintypes.UInt32.constants.WM_HOTKEY,onhotkey);
 	//after this anytime WM_HOTKEY:^b is being listened, it will be emitted
 	win32messageHandler.oneTimeListen("WM_HOTKEY:^b",([str])=>{
 		var [_,str2,str3]=str.match(/:([\^#?+!]+)([A-z]+)$/);
@@ -298,27 +292,48 @@ win32messageHandler.hotkeyArray=[];
 	}
 		fnproxy.UnregisterHotKey(id);
 	});
+	
+});
+
+
+win32messageHandler.hotkeyArray=[];
+	win32messageHandler.hotkeyArray.holes=[];
+	function onhotkey(lParam,hotkeyID){
+		console.log("Hello, does this even get executed?")
+		var c=constants.macros.HIWORD(lParam)
+		var str=`${c&MOD_CONTROL?"{Control Up}":""}${c&MOD_SHIFT?"{Shift Up}":""}${c&MOD_ALT?"{Alt Up}":""}${c&MOD_WIN?"{Windows Up}":""}`
+		if(str.length>0)
+		goodies.sendInputAhkSync(str);
+		win32messageHandler.emit(win32messageHandler.hotkeyArray[hotkeyID],lParam);
+	}
+		
+	
 
 goodies.createWindow=function createWindow(params){
 	var window=new events();
 	require('./eventUtils.js').addEventUtilsToEventDispatcher(window);
 
-	var WindowProc=//ffi.Callback(...wintypes.fn.WNDPROC,
+	var WindowProc=winapicore.functions.DefWindowProcA;/*/ffi.Callback(...wintypes.fn.WNDPROC,
 		(hwnd, uMsg, wParam, lParam) => {
+			console.log("Windows has called WindowProc")
 			//console.log('WndProc callback',winapi.msg[uMsg],uMsg.toString(16),"wParam:",wParam,"lParam:",ref.address(lParam));
 			let result = 0;
 			var obj={hwnd,wParam,lParam};
 			window.emit("message",{uMsg,...obj});
-			console.log(constants.msg[uMsg]||uMsg)
-			window.emit(constants.msg[uMsg]||uMsg,obj);
+			//console.log(uMsg," Window message")
+			window.emit(uMsg,obj);
 			if(obj.preventDefaulted){
 				result=obj.result;
 			}else
-				result = fnproxy.DefWindowProcA(hwnd, uMsg, wParam, lParam);
+			{
+				console.log("WindowProc before DefWindowProcA")
+				result = fnproxy.DefWindowProcA(hwnd, uMsg, wParam, lParam); 
+			}
 			//console.info('Sending LRESULT: ' + result) 
+			console.log("WindowProc returned")
 			return result
 		};
-	//);
+	*/
 	window.WindowProc=WindowProc;
 	var wClass=new wintypes.WNDCLASSA();
 	//wClass.cbSize=wClass.ref().byteLength;
@@ -569,4 +584,6 @@ winapi.types=wintypes
 winapi.user32=current
 
 */
-module.exports=({goodies,constants,winapicore});
+module.exports=({goodies,constants,done:done.then(_=>{
+	return {fn:fnproxy,winapicore}
+})});
