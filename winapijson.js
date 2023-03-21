@@ -485,7 +485,7 @@ function getDll(dllname) {
 var dll = {};
 var functions = {};
 var clsIDs={}
-var debug = true
+const debug = false
 
 var readdir = util.promisify(fs.readdir);
 

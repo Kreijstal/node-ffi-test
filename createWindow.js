@@ -25,6 +25,7 @@ done.then(({fn,winapicore})=>{
 			console.log("Fianlly a WM_PAINT call!")
 			break;
 		case 2:
+		console.log("Quit")
 			fn.PostQuitMessage(0);
 			IGNORE=false;
 			return 0;
@@ -33,7 +34,7 @@ done.then(({fn,winapicore})=>{
 		IGNORE=false;
 			return 0;
 	}
-			//fuck defWindowProcA?
+			
 			result = fn.DefWindowProcA(hwnd, uMsg, wParam, lParam);
 			IGNORE=false;
 			return result
@@ -75,6 +76,7 @@ if (!hwnd) {
         fn.TranslateMessage(msg.ref());
         fn.DispatchMessageA(msg.ref());
     }
+	console.log("after loop")
     return 0;
 	
 })
